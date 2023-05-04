@@ -27,8 +27,15 @@ def psi(i, j, k, offset=(25, 25, 50)):
     th = np.arctan2(z, np.hypot(x, y))
     r = np.sqrt(x**2 + y**2 + z **2)
     a0 = 1
-    ps = (1./81.) * 1./(6.*np.pi)**0.5 * (1./a0)**(3/2) * (r/a0)**2 * np.exp(-r/(3*a0)) * (3 * np.cos(th)**2 - 1)
-    return ps
+    return (
+        (1.0 / 81.0)
+        * 1.0
+        / (6.0 * np.pi) ** 0.5
+        * (1.0 / a0) ** (3 / 2)
+        * (r / a0) ** 2
+        * np.exp(-r / (3 * a0))
+        * (3 * np.cos(th) ** 2 - 1)
+    )
 
 
 print("Generating scalar field..")

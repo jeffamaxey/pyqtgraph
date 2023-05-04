@@ -75,7 +75,15 @@ def createLabel(label, angle):
     tr.translate(-br.x() - br.width()/2., -br.y() - br.height()/2.)
     return TextSymbol(label, tr.map(symbol), 0.1 / scale)
 
-random_str = lambda : (''.join([chr(np.random.randint(ord('A'),ord('z'))) for i in range(np.random.randint(1,5))]), np.random.randint(0, 360))
+random_str = lambda: (
+    ''.join(
+        [
+            chr(np.random.randint(ord('A'), ord('z')))
+            for _ in range(np.random.randint(1, 5))
+        ]
+    ),
+    np.random.randint(0, 360),
+)
 
 s2 = pg.ScatterPlotItem(size=10, pen=pg.mkPen('w'), pxMode=True)
 pos = np.random.normal(size=(2,n), scale=1e-5)
@@ -99,8 +107,15 @@ s3 = pg.ScatterPlotItem(
 )
 spots3 = []
 for i in range(10):
-    for j in range(10):
-        spots3.append({'pos': (1e-6*i, 1e-6*j), 'size': 1e-6, 'pen': {'color': 'w', 'width': 2}, 'brush':pg.intColor(i*10+j, 100)})
+    spots3.extend(
+        {
+            'pos': (1e-6 * i, 1e-6 * j),
+            'size': 1e-6,
+            'pen': {'color': 'w', 'width': 2},
+            'brush': pg.intColor(i * 10 + j, 100),
+        }
+        for j in range(10)
+    )
 s3.addPoints(spots3)
 w3.addItem(s3)
 s3.sigClicked.connect(clicked)

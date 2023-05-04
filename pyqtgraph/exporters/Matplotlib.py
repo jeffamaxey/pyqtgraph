@@ -51,14 +51,14 @@ class MatplotlibExporter(Exporter):
                     spine.set_color('none')
                     # do not draw the spine
                 else:
-                    raise ValueError('Unknown spine location: %s' % loc)
+                    raise ValueError(f'Unknown spine location: {loc}')
                 # turn off ticks when there is no spine
                 ax.xaxis.set_ticks_position('bottom')
     
     def export(self, fileName=None):
         if not isinstance(self.item, PlotItem):
             raise Exception("MatplotlibExporter currently only works with PlotItem")
-    
+
         mpw = MatplotlibWindow()
         MatplotlibExporter.windows.append(mpw)
 
@@ -66,7 +66,7 @@ class MatplotlibExporter(Exporter):
 
         xax = self.item.getAxis('bottom')
         yax = self.item.getAxis('left')
-        
+
         # get labels from the graphic item
         xlabel = xax.label.toPlainText()
         ylabel = yax.label.toPlainText()
@@ -90,10 +90,7 @@ class MatplotlibExporter(Exporter):
 
             opts = item.opts
             pen = fn.mkPen(opts['pen'])
-            if pen.style() == QtCore.Qt.PenStyle.NoPen:
-                linestyle = ''
-            else:
-                linestyle = '-'
+            linestyle = '' if pen.style() == QtCore.Qt.PenStyle.NoPen else '-'
             color = pen.color().getRgbF()
             symbol = opts['symbol']
             if symbol == 't':
@@ -103,12 +100,12 @@ class MatplotlibExporter(Exporter):
             markeredgecolor = symbolPen.color().getRgbF()
             markerfacecolor = symbolBrush.color().getRgbF()
             markersize = opts['symbolSize']
-            
+
             if opts['fillLevel'] is not None and opts['fillBrush'] is not None:
                 fillBrush = fn.mkBrush(opts['fillBrush'])
                 fillcolor = fillBrush.color().getRgbF()
                 ax.fill_between(x=x, y1=y, y2=opts['fillLevel'], facecolor=fillcolor)
-            
+
             pl = ax.plot(x, y, marker=symbol, color=color, linewidth=pen.width(), 
                     linestyle=linestyle, markeredgecolor=markeredgecolor, markerfacecolor=markerfacecolor,
                     markersize=markersize)

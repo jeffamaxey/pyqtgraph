@@ -58,14 +58,14 @@ class ErrorBarItem(GraphicsObject):
         
     def drawPath(self):
         p = QtGui.QPainterPath()
-        
+
         x, y = self.opts['x'], self.opts['y']
         if x is None or y is None:
             self.path = p
             return
-        
+
         beam = self.opts['beam']
-        
+
         height, top, bottom = self.opts['height'], self.opts['top'], self.opts['bottom']
         if height is not None or top is not None or bottom is not None:
             ## draw vertical error bars
@@ -73,15 +73,8 @@ class ErrorBarItem(GraphicsObject):
                 y1 = y - height/2.
                 y2 = y + height/2.
             else:
-                if bottom is None:
-                    y1 = y
-                else:
-                    y1 = y - bottom
-                if top is None:
-                    y2 = y
-                else:
-                    y2 = y + top
-
+                y1 = y if bottom is None else y - bottom
+                y2 = y if top is None else y + top
             xs = fn.interweaveArrays(x, x)
             y1_y2 = fn.interweaveArrays(y1, y2)
             verticalLines = fn.arrayToQPath(xs, y1_y2, connect="pairs")
@@ -109,15 +102,8 @@ class ErrorBarItem(GraphicsObject):
                 x1 = x - width/2.
                 x2 = x + width/2.
             else:
-                if left is None:
-                    x1 = x
-                else:
-                    x1 = x - left
-                if right is None:
-                    x2 = x
-                else:
-                    x2 = x + right
-            
+                x1 = x if left is None else x - left
+                x2 = x if right is None else x + right
             ys = fn.interweaveArrays(y, y)
             x1_x2 = fn.interweaveArrays(x1, x2)
             ends = fn.arrayToQPath(x1_x2, ys, connect='pairs')
@@ -136,7 +122,7 @@ class ErrorBarItem(GraphicsObject):
                     x1s = fn.interweaveArrays(x1, x1)
                     leftEnds = fn.arrayToQPath(x1s, y1_y2, connect="pairs")
                     p.addPath(leftEnds)
-                    
+
         self.path = p
         self.prepareGeometryChange()
         

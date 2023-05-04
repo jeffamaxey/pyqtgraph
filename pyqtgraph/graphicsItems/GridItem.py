@@ -30,7 +30,7 @@ class GridItem(UIGraphicsItem):
 
     def setPen(self, *args, **kwargs):
         """Set the pen used to draw the grid."""
-        if kwargs == {} and (args == () or args == ('default',)):
+        if not kwargs and args in [(), ('default',)]:
             self.opts['pen'] = fn.mkPen(getConfigOption('foreground'))
         else:
             self.opts['pen'] = fn.mkPen(*args, **kwargs)
@@ -41,14 +41,10 @@ class GridItem(UIGraphicsItem):
 
     def setTextPen(self, *args, **kwargs):
         """Set the pen used to draw the texts."""
-        if kwargs == {} and (args == () or args == ('default',)):
+        if not kwargs and args in [(), ('default',)]:
             self.opts['textPen'] = fn.mkPen(getConfigOption('foreground'))
         else:
-            if args == (None,):
-                self.opts['textPen'] = None
-            else:
-                self.opts['textPen'] = fn.mkPen(*args, **kwargs)
-
+            self.opts['textPen'] = None if args == (None,) else fn.mkPen(*args, **kwargs)
         self.picture = None
         self.update()
 
@@ -77,7 +73,7 @@ class GridItem(UIGraphicsItem):
         self.opts['tickSpacing'] = (x or self.opts['tickSpacing'][0],
                                     y or self.opts['tickSpacing'][1])
 
-        self.grid_depth = max([len(s) for s in self.opts['tickSpacing']])
+        self.grid_depth = max(len(s) for s in self.opts['tickSpacing'])
 
         self.picture = None
         self.update()
@@ -108,16 +104,16 @@ class GridItem(UIGraphicsItem):
         self.picture = QtGui.QPicture()
         p = QtGui.QPainter()
         p.begin(self.picture)
-        
+
         vr = self.getViewWidget().rect()
         unit = self.pixelWidth(), self.pixelHeight()
         dim = [vr.width(), vr.height()]
         lvr = self.boundingRect()
         ul = np.array([lvr.left(), lvr.top()])
         br = np.array([lvr.right(), lvr.bottom()])
-        
+
         texts = []
-        
+
         if ul[1] > br[1]:
             x = ul[1]
             ul[1] = br[1]
@@ -190,7 +186,7 @@ class GridItem(UIGraphicsItem):
         tr = self.deviceTransform()
         p.setWorldTransform(fn.invertQTransform(tr))
 
-        if textPen is not None and len(texts) > 0:
+        if textPen is not None and texts:
             # if there is at least one text, then c is set
             textColor.setAlpha(c * 2)
             p.setPen(QtGui.QPen(textColor))

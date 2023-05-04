@@ -96,10 +96,7 @@ def siScale(x, minVal=1e-25, allowUnicode=True):
     elif m < -8 or m > 8:
         pref = 'e%d' % (m*3)
     else:
-        if allowUnicode:
-            pref = SI_PREFIXES[m+8]
-        else:
-            pref = SI_PREFIXES_ASCII[m+8]
+        pref = SI_PREFIXES[m+8] if allowUnicode else SI_PREFIXES_ASCII[m+8]
     m1 = -3*m
     p = 10.**m1
     return (p, pref)
@@ -117,21 +114,18 @@ def siFormat(x, precision=3, suffix='', space=True, error=None, minVal=1e-25, al
         space = ' '
     if space is False:
         space = ''
-        
-    
+
+
     (p, pref) = siScale(x, minVal, allowUnicode)
-    if not (len(pref) > 0 and pref[0] == 'e'):
+    if len(pref) <= 0 or pref[0] != 'e':
         pref = space + pref
-    
+
     if error is None:
-        fmt = "%." + str(precision) + "g%s%s"
+        fmt = f"%.{str(precision)}g%s%s"
         return fmt % (x*p, pref, suffix)
     else:
-        if allowUnicode:
-            plusminus = space + "±" + space
-        else:
-            plusminus = " +/- "
-        fmt = "%." + str(precision) + "g%s%s%s%s"
+        plusminus = f"{space}±{space}" if allowUnicode else " +/- "
+        fmt = f"%.{str(precision)}g%s%s%s%s"
         return fmt % (x*p, pref, suffix, plusminus, siFormat(error, precision=precision, suffix=suffix, space=space, minVal=minVal))
 
 
@@ -163,8 +157,8 @@ def siParse(s, regex=FLOAT_REGEX, suffix=None):
     s = s.strip()
     if suffix is not None and len(suffix) > 0:
         if s[-len(suffix):] != suffix:
-            raise ValueError("String '%s' does not have the expected suffix '%s'" % (s, suffix))
-        s = s[:-len(suffix)] + 'X'  # add a fake suffix so the regex still picks up the si prefix
+            raise ValueError(f"String '{s}' does not have the expected suffix '{suffix}'")
+        s = f'{s[:-len(suffix)]}X'
 
     # special case: discard any extra characters if suffix is explicitly empty
     if suffix == "":
@@ -172,7 +166,7 @@ def siParse(s, regex=FLOAT_REGEX, suffix=None):
 
     m = regex.match(s)
     if m is None:
-        raise ValueError('Cannot parse number "%s"' % s)
+        raise ValueError(f'Cannot parse number "{s}"')
 
     try:
         sip = m.group('siPrefix')
@@ -247,7 +241,7 @@ def mkColor(*args):
      QColor          QColor instance; makes a copy.
     ================ ================================================
     """
-    err = 'Not sure how to make a color from "%s"' % str(args)
+    err = f'Not sure how to make a color from "{args}"'
     if len(args) == 1:
         if isinstance(args[0], str):
             c = args[0]
@@ -255,8 +249,8 @@ def mkColor(*args):
                 try:
                     return Colors[c]
                 except KeyError:
-                    raise ValueError('No color named "%s"' % c)
-            have_alpha = len(c) in [5, 9] and c[0] == '#'  # "#RGBA" and "#RRGGBBAA"
+                    raise ValueError(f'No color named "{c}"')
+            have_alpha = len(c) in {5, 9} and c[0] == '#'
             if not have_alpha:
                 # try parsing SVG named colors, including "#RGB" and "#RRGGBB".
                 # note that QColor.setNamedColor() treats a 9-char hex string as "#AARRGGBB".
@@ -285,12 +279,12 @@ def mkColor(*args):
                 b = int(c[2]*2, 16)
                 a = int(c[3]*2, 16)
             elif len(c) == 6:
-                r = int(c[0:2], 16)
+                r = int(c[:2], 16)
                 g = int(c[2:4], 16)
                 b = int(c[4:6], 16)
                 a = 255
             elif len(c) == 8:
-                r = int(c[0:2], 16)
+                r = int(c[:2], 16)
                 g = int(c[2:4], 16)
                 b = int(c[4:6], 16)
                 a = int(c[6:8], 16)
@@ -366,7 +360,7 @@ def mkPen(*args, **kargs):
     dash = kargs.get('dash', None)
     cosmetic = kargs.get('cosmetic', True)
     hsv = kargs.get('hsv', None)
-    
+
     if len(args) == 1:
         arg = args[0]
         if isinstance(arg, dict):
@@ -379,14 +373,10 @@ def mkPen(*args, **kargs):
             color = arg
     if len(args) > 1:
         color = args
-        
+
     if color is None:
         color = mkColor('l')
-    if hsv is not None:
-        color = hsvColor(*hsv)
-    else:
-        color = mkColor(color)
-        
+    color = hsvColor(*hsv) if hsv is not None else mkColor(color)
     pen = QtGui.QPen(QtGui.QBrush(color), width)
     pen.setCosmetic(cosmetic)
     if style is not None:
@@ -518,17 +508,19 @@ def colorCIELab(qcol):
     # converted linear RGB to tristimulus XYZ:
     vec_XYZ = MATRIX_XYZ_FROM_RGB @ vec_RGB
     # normalize with white reference and convert to L*a*b* values
-    vec_XYZ1 = vec_XYZ / VECTOR_XYZn 
+    vec_XYZ1 = vec_XYZ / VECTOR_XYZn
     for idx, val in enumerate(vec_XYZ1):
         if val > 0.008856:
             vec_XYZ1[idx] = vec_XYZ1[idx]**(1/3)
         else:
             vec_XYZ1[idx] = 7.787*vec_XYZ1[idx] + 16/116
-    vec_Lab = np.array([
-        116 * vec_XYZ1[1] - 16,              # Y1
-        500 * (vec_XYZ1[0] - vec_XYZ1[1]),   # X1 - Y1
-        200 * (vec_XYZ1[1] - vec_XYZ1[2])] ) # Y1 - Z1
-    return vec_Lab
+    return np.array(
+        [
+            116 * vec_XYZ1[1] - 16,  # Y1
+            500 * (vec_XYZ1[0] - vec_XYZ1[1]),  # X1 - Y1
+            200 * (vec_XYZ1[1] - vec_XYZ1[2]),
+        ]
+    )
 
 def colorDistance(colors, metric='CIE76'):
     """
@@ -653,9 +645,13 @@ def eq(a, b):
         return True
 
     # The above catches np.nan, but not float('nan')
-    if isinstance(a, float) and isinstance(b, float):
-        if math.isnan(a) and math.isnan(b):
-            return True
+    if (
+        isinstance(a, float)
+        and isinstance(b, float)
+        and math.isnan(a)
+        and math.isnan(b)
+    ):
+        return True
 
     # Avoid comparing large arrays against scalars; this is expensive and we know it should return False.
     aIsArr = isinstance(a, (np.ndarray, MetaArray))
@@ -686,11 +682,7 @@ def eq(a, b):
     if isinstance(a, (list, tuple)) and isinstance(b, (list, tuple)):
         if type(a) != type(b) or len(a) != len(b):
             return False
-        for v1,v2 in zip(a, b):
-            if not eq(v1, v2):
-                return False
-        return True
-
+        return all(eq(v1, v2) for v1, v2 in zip(a, b))
     # Test for equivalence. 
     # If the test raises a recognized exception, then return Falase
     try:
@@ -705,18 +697,18 @@ def eq(a, b):
         return False
     except:
         print('failed to evaluate equivalence for:')
-        print("  a:", str(type(a)), str(a))
-        print("  b:", str(type(b)), str(b))
+        print("  a:", type(a), a)
+        print("  b:", type(b), b)
         raise
     finally:
         if catcher is not None:
             catcher.__exit__(None, None, None)
-    
+
     t = type(e)
     if t is bool:
         return e
     elif t is np.bool_:
-        return bool(e)
+        return e
     elif isinstance(e, np.ndarray) or (hasattr(e, 'implements') and e.implements('MetaArray')):
         try:   ## disaster: if a is an empty array and b is not, then e.all() is True
             if a.shape != b.shape:
@@ -728,7 +720,7 @@ def eq(a, b):
         else:
             return e.all()
     else:
-        raise TypeError("== operator returned type %s" % str(type(e)))
+        raise TypeError(f"== operator returned type {str(type(e))}")
 
 
 def affineSliceCoords(shape, origin, vectors, axes):
@@ -742,7 +734,7 @@ def affineSliceCoords(shape, origin, vectors, axes):
     for v in vectors:
         if len(v) != len(axes):
             raise Exception("each vector must be same length as axes.")
-        
+
     shape = list(map(np.ceil, shape))
 
     ## make sure vectors are arrays
@@ -752,8 +744,8 @@ def affineSliceCoords(shape, origin, vectors, axes):
         origin = np.array(origin)
     origin.shape = (len(axes),) + (1,)*len(shape)
 
-    ## Build array of sample locations. 
-    grid = np.mgrid[tuple([slice(0,x) for x in shape])]  ## mesh grid of indexes
+    ## Build array of sample locations.
+    grid = np.mgrid[tuple(slice(0,x) for x in shape)]
     x = (grid[np.newaxis,...] * vectors.transpose()[(Ellipsis,) + (np.newaxis,)*len(shape)]).sum(axis=1)  ## magic
     x += origin
 
@@ -835,7 +827,7 @@ def affineSlice(data, shape, origin, vectors, axes, order=1, returnCoords=False,
         # interpolateArray expects indexes at the last axis. 
         tr = tuple(range(1, x.ndim)) + (0,)
         output = interpolateArray(data, x.transpose(tr), order=order)
-    
+
     tr = list(range(output.ndim))
     trb = []
     for i in range(min(axes)):
@@ -846,10 +838,7 @@ def affineSlice(data, shape, origin, vectors, axes, order=1, returnCoords=False,
 
     ## Untranspose array before returning
     output = output.transpose(tr2)
-    if returnCoords:
-        return (output, x)
-    else:
-        return output
+    return (output, x) if returnCoords else output
 
 
 def interweaveArrays(*args):
@@ -943,7 +932,7 @@ def interpolateArray(data, x, default=0.0, order=1):
     This is useful for interpolating from arrays of colors, vertexes, etc.
     """
     if order not in (0, 1):
-        raise ValueError("interpolateArray requires order=0 or 1 (got %s)" % order)
+        raise ValueError(f"interpolateArray requires order=0 or 1 (got {order})")
 
     prof = debug.Profiler()
 
@@ -960,8 +949,8 @@ def interpolateArray(data, x, default=0.0, order=1):
             xinds[...,ax][~mask] = 0
             # keep track of points that need to be set to default
             totalMask &= mask
-        result = data[tuple([xinds[...,i] for i in range(xinds.shape[-1])])]
-        
+        result = data[tuple(xinds[...,i] for i in range(xinds.shape[-1]))]
+
     elif order == 1:
         # First we generate arrays of indexes that are needed to 
         # extract the data surrounding each point
@@ -974,7 +963,7 @@ def interpolateArray(data, x, default=0.0, order=1):
             mask = (xmin[...,ax] >= 0) & (x[...,ax] <= data.shape[ax]-1) 
             # keep track of points that need to be set to default
             totalMask &= mask
-            
+
             # ..and keep track of indexes that are out of bounds 
             # (note that when x[...,ax] == data.shape[ax], then xmax[...,ax] will be out
             #  of bounds, but the interpolation will work anyway)
@@ -988,7 +977,7 @@ def interpolateArray(data, x, default=0.0, order=1):
         # Get data values surrounding each requested point
         fieldData = data[tuple(fieldInds)]
         prof()
-    
+
         ## Interpolate
         s = np.empty((md,) + fieldData.shape, dtype=float)
         dx = x - xmin
@@ -1000,16 +989,15 @@ def interpolateArray(data, x, default=0.0, order=1):
             s[ax] = sax
         s = np.product(s, axis=0)
         result = fieldData * s
-        for i in range(md):
+        for _ in range(md):
             result = result.sum(axis=0)
 
     prof()
 
     if totalMask.ndim > 0:
         result[~totalMask] = default
-    else:
-        if totalMask is False:
-            result[:] = default
+    elif totalMask is False:
+        result[:] = default
 
     prof()
     return result
@@ -1043,10 +1031,9 @@ def subArray(data, offset, shape, stride):
 
     strides = list(data.strides[::-1])
     itemsize = strides[-1]
-    for s in stride[1::-1]:
-        strides.append(itemsize * s)
+    strides.extend(itemsize * s for s in stride[1::-1])
     strides = tuple(strides[::-1])
-    
+
     return np.ndarray(buffer=data, shape=shape+extraShape, strides=strides, dtype=data.dtype)
 
 
@@ -1194,7 +1181,7 @@ def solveBilinearTransform(points1, points2):
 
 def clip_scalar(val, vmin, vmax):
     """ convenience function to avoid using np.clip for scalar values """
-    return vmin if val < vmin else vmax if val > vmax else val
+    return vmin if val < vmin else min(val, vmax)
 
 # umath.clip was slower than umath.maximum(umath.minimum).
 # See https://github.com/numpy/numpy/pull/20134 for details.
@@ -1277,11 +1264,7 @@ def rescaleData(data, scale, offset, dtype=None, clip=None):
 
         data => (data-offset) * scale
     """
-    if dtype is None:
-        out_dtype = data.dtype
-    else:
-        out_dtype = np.dtype(dtype)
-
+    out_dtype = data.dtype if dtype is None else np.dtype(dtype)
     if out_dtype.kind in 'ui':
         lim = np.iinfo(out_dtype)
         if clip is None:
@@ -1293,11 +1276,7 @@ def rescaleData(data, scale, offset, dtype=None, clip=None):
         # this improves performance, especially on Windows
         clip = [math.trunc(x) for x in clip]
 
-    if np.can_cast(data, np.float32):
-        work_dtype = np.float32
-    else:
-        work_dtype = np.float64
-
+    work_dtype = np.float32 if np.can_cast(data, np.float32) else np.float64
     cp = getCupy()
     if cp and cp.get_array_module(data) == cp:
         # Cupy does not support nditer
@@ -1401,10 +1380,10 @@ def makeARGB(data, lut=None, levels=None, scale=None, useRGBA=False, maskNans=Tr
         raise TypeError("data must be 2D or 3D")
     if data.ndim == 3 and data.shape[2] > 4:
         raise TypeError("data.shape[2] must be <= 4")
-    
+
     if lut is not None and not isinstance(lut, xp.ndarray):
         lut = xp.array(lut)
-    
+
     if levels is None:
         # automatically decide levels based on data dtype
         if data.dtype.kind == 'u':
@@ -1428,23 +1407,17 @@ def makeARGB(data, lut=None, levels=None, scale=None, useRGBA=False, maskNans=Tr
         if levels.shape != (data.shape[-1], 2):
             raise Exception('levels must have shape (data.shape[-1], 2)')
     else:
-        raise Exception("levels argument must be 1D or 2D (got shape=%s)." % repr(levels.shape))
+        raise Exception(
+            f"levels argument must be 1D or 2D (got shape={repr(levels.shape)})."
+        )
 
     profile('check inputs')
 
     # Decide on maximum scaled value
     if scale is None:
-        if lut is not None:
-            scale = lut.shape[0]
-        else:
-            scale = 255.
-
+        scale = lut.shape[0] if lut is not None else 255.
     # Decide on the dtype we want after scaling
-    if lut is None:
-        dtype = xp.ubyte
-    else:
-        dtype = xp.min_scalar_type(lut.shape[0]-1)
-
+    dtype = xp.ubyte if lut is None else xp.min_scalar_type(lut.shape[0]-1)
     # awkward, but fastest numpy native nan evaluation
     nanMask = None
     if maskNans and data.dtype.kind == 'f' and xp.isnan(data.min()):
@@ -1481,9 +1454,8 @@ def makeARGB(data, lut=None, levels=None, scale=None, useRGBA=False, maskNans=Tr
     # apply LUT if given
     if lut is not None:
         data = applyLookupTable(data, lut)
-    else:
-        if data.dtype != xp.ubyte:
-            data = xp.clip(data, 0, 255).astype(xp.ubyte)
+    elif data.dtype != xp.ubyte:
+        data = xp.clip(data, 0, 255).astype(xp.ubyte)
 
     profile('apply lut')
 
@@ -1502,7 +1474,7 @@ def makeARGB(data, lut=None, levels=None, scale=None, useRGBA=False, maskNans=Tr
         dst_order = [2, 1, 0, 3]    # B,G,R,A (ARGB32 little endian)
     else:
         dst_order = [1, 2, 3, 0]    # A,R,G,B (ARGB32 big endian)
-        
+
     # copy data into image array
     fastpath = try_fastpath_argb(xp, data, imgData, useRGBA)
 
@@ -1520,9 +1492,9 @@ def makeARGB(data, lut=None, levels=None, scale=None, useRGBA=False, maskNans=Tr
     else:
         for i in range(0, data.shape[2]):
             imgData[..., dst_order[i]] = data[..., i]
-        
+
     profile('reorder channels')
-    
+
     # add opaque alpha channel if needed
     if data.ndim == 3 and data.shape[2] == 4:
         alpha = True
@@ -1563,11 +1535,7 @@ def try_fastpath_argb(xp, ain, aout, useRGBA):
     else:
         in_fmt = Format.Format_RGBA8888
 
-    if useRGBA:
-        out_fmt = Format.Format_RGBA8888
-    else:
-        out_fmt = Format.Format_ARGB32
-
+    out_fmt = Format.Format_RGBA8888 if useRGBA else Format.Format_ARGB32
     if in_fmt == out_fmt:
         aout[:] = ain
         return True
@@ -1600,18 +1568,7 @@ def ndarray_to_qimage(arr, fmt):
     # If the const constructor is used, subsequently calling any non-const method
     # will trigger the COW mechanism, i.e. a copy is made under the hood.
 
-    if QT_LIB.startswith('PyQt'):
-        # PyQt5          -> non-const
-        # PyQt6 >= 6.0.1 -> non-const
-        img_ptr = int(Qt.sip.voidptr(arr))  # or arr.ctypes.data
-    else:
-        # bindings that support ndarray
-        # PyQt5          -> const
-        # PyQt6 >= 6.0.1 -> const
-        # PySide2        -> non-const
-        # PySide6        -> non-const
-        img_ptr = arr
-
+    img_ptr = int(Qt.sip.voidptr(arr)) if QT_LIB.startswith('PyQt') else arr
     h, w = arr.shape[:2]
     bytesPerLine = arr.strides[0]
     qimg = QtGui.QImage(img_ptr, w, h, bytesPerLine, fmt)
@@ -1651,7 +1608,7 @@ def makeQImage(imgData, alpha=None, copy=True, transpose=True):
     """
     ## create QImage from buffer
     profile = debug.Profiler()
-    
+
     copied = False
     if imgData.ndim == 2:
         imgFormat = QtGui.QImage.Format.Format_Grayscale8
@@ -1659,41 +1616,42 @@ def makeQImage(imgData, alpha=None, copy=True, transpose=True):
         # If we didn't explicitly specify alpha, check the array shape.
         if alpha is None:
             alpha = (imgData.shape[2] == 4)
-            
-        if imgData.shape[2] == 3:  # need to make alpha channel (even if alpha==False; QImage requires 32 bpp)
-            if copy is True:
-                d2 = np.empty(imgData.shape[:2] + (4,), dtype=imgData.dtype)
-                d2[:,:,:3] = imgData
-                d2[:,:,3] = 255
-                imgData = d2
-                copied = True
-            else:
+
+        if imgData.shape[2] == 3:
+            if copy is not True:
                 raise Exception('Array has only 3 channels; cannot make QImage without copying.')
-        
+
+            d2 = np.empty(imgData.shape[:2] + (4,), dtype=imgData.dtype)
+            d2[:,:,:3] = imgData
+            d2[:,:,3] = 255
+            imgData = d2
+            copied = True
         profile("add alpha channel")
-        
+
         if alpha:
             imgFormat = QtGui.QImage.Format.Format_ARGB32
         else:
             imgFormat = QtGui.QImage.Format.Format_RGB32
     else:
         raise TypeError("Image array must have ndim = 2 or 3.")
-        
+
     if transpose:
         imgData = imgData.transpose((1, 0, 2))  # QImage expects row-major order
 
     if not imgData.flags['C_CONTIGUOUS']:
         if copy is False:
             extra = ' (try setting transpose=False)' if transpose else ''
-            raise Exception('Array is not contiguous; cannot make QImage without copying.'+extra)
+            raise Exception(
+                f'Array is not contiguous; cannot make QImage without copying.{extra}'
+            )
         imgData = np.ascontiguousarray(imgData)
         copied = True
-        
+
     profile("ascontiguousarray")
-    
-    if copy is True and copied is False:
+
+    if copy is True and not copied:
         imgData = imgData.copy()
-        
+
     profile("copy")
 
     return ndarray_to_qimage(imgData, imgFormat)
@@ -1733,8 +1691,7 @@ def ndarray_from_qimage(qimg):
     shape = h, w
     if nchan != 1:
         shape = shape + (nchan,)
-    arr = memory.view(dtype).reshape(shape)
-    return arr
+    return memory.view(dtype).reshape(shape)
 
 
 def imageToArray(img, copy=False, transpose=True):
@@ -1749,14 +1706,11 @@ def imageToArray(img, copy=False, transpose=True):
     fmt = img.format()
     if fmt == img.Format.Format_RGB32:
         arr[...,3] = 255
-    
+
     if copy:
         arr = arr.copy()
-        
-    if transpose:
-        return arr.transpose((1,0,2))
-    else:
-        return arr
+
+    return arr.transpose((1,0,2)) if transpose else arr
     
 def colorToAlpha(data, color):
     """
@@ -1854,15 +1808,15 @@ def downsample(data, n, axis=0, xvals='subsample'):
     if (hasattr(data, 'implements') and data.implements('MetaArray')):
         ma = data
         data = data.view(np.ndarray)
-        
-    
+
+
     if hasattr(axis, '__len__'):
         if not hasattr(n, '__len__'):
             n = [n]*len(axis)
         for i in range(len(axis)):
             data = downsample(data, n[i], axis[i])
         return data
-    
+
     if n <= 1:
         return data
     nPts = int(data.shape[axis] / n)
@@ -1875,17 +1829,16 @@ def downsample(data, n, axis=0, xvals='subsample'):
     #print d1.shape, s
     d1.shape = tuple(s)
     d2 = d1.mean(axis+1)
-    
+
     if ma is None:
         return d2
-    else:
-        info = ma.infoCopy()
-        if 'values' in info[axis]:
-            if xvals == 'subsample':
-                info[axis]['values'] = info[axis]['values'][::n][:nPts]
-            elif xvals == 'downsample':
-                info[axis]['values'] = downsample(info[axis]['values'], n)
-        return MetaArray(d2, info=info)
+    info = ma.infoCopy()
+    if 'values' in info[axis]:
+        if xvals == 'subsample':
+            info[axis]['values'] = info[axis]['values'][::n][:nPts]
+        elif xvals == 'downsample':
+            info[axis]['values'] = downsample(info[axis]['values'], n)
+    return MetaArray(d2, info=info)
 
 
 def _compute_backfill_indices(isfinite):
@@ -2158,7 +2111,7 @@ def arrayToQPath(x, y, connect='all', finiteCheck=True):
 
     # decide which points are connected by lines
     if connect == 'pairs':
-        arr['c'][0::2] = 0
+        arr['c'][::2] = 0
         arr['c'][1::2] = 1  # connect every 2nd point to every 1st one
     elif connect == 'array':
         # Let's call a point with either x or y being nan is an invalid point.
@@ -2190,8 +2143,7 @@ def ndarray_from_qpolygonf(polyline):
         if ptr is None:
             ptr = 0
         buffer = Qt.shiboken.VoidPtr(ptr, nbytes, True)
-    memory = np.frombuffer(buffer, np.double).reshape((-1, 2))
-    return memory
+    return np.frombuffer(buffer, np.double).reshape((-1, 2))
 
 def create_qpolygonf(size):
     polyline = QtGui.QPolygonF()

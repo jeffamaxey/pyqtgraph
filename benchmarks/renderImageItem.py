@@ -103,7 +103,7 @@ class _TimeSuite(object):
 
 def make_test(dtype, kind, use_levels, lut_name, func_name):
     def time_test(self):
-        data = getattr(self, dtype + "_data")
+        data = getattr(self, f"{dtype}_data")
         levels = data["levels"] if use_levels else None
         lut = getattr(self, f"{kind}_{lut_name}_lut", None) if lut_name is not None else None
         pg.setConfigOption("useNumba", kind == "numba")

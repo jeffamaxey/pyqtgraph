@@ -17,10 +17,7 @@ class ImageExporter(Exporter):
     def __init__(self, item):
         Exporter.__init__(self, item)
         tr = self.getTargetRect()
-        if isinstance(item, QtWidgets.QGraphicsItem):
-            scene = item.scene()
-        else:
-            scene = item
+        scene = item.scene() if isinstance(item, QtWidgets.QGraphicsItem) else item
         bgbrush = scene.views()[0].backgroundBrush()
         bg = bgbrush.color()
         if bgbrush.style() == QtCore.Qt.BrushStyle.NoBrush:
@@ -78,13 +75,13 @@ class ImageExporter(Exporter):
 
         self.png = QtGui.QImage(w, h, QtGui.QImage.Format.Format_ARGB32)
         self.png.fill(self.params['background'])
-        
+
         ## set resolution of image:
         origTargetRect = self.getTargetRect()
         resolutionScale = targetRect.width() / origTargetRect.width()
         #self.png.setDotsPerMeterX(self.png.dotsPerMeterX() * resolutionScale)
         #self.png.setDotsPerMeterY(self.png.dotsPerMeterY() * resolutionScale)
-        
+
         painter = QtGui.QPainter(self.png)
         #dtr = painter.deviceTransform()
         try:
@@ -98,18 +95,15 @@ class ImageExporter(Exporter):
         finally:
             self.setExportMode(False)
         painter.end()
-        
+
         if self.params['invertValue']:
             bg = fn.ndarray_from_qimage(self.png)
-            if sys.byteorder == 'little':
-                cv = slice(0, 3)
-            else:
-                cv = slice(1, 4)
+            cv = slice(0, 3) if sys.byteorder == 'little' else slice(1, 4)
             mn = bg[...,cv].min(axis=2)
             mx = bg[...,cv].max(axis=2)
             d = (255 - mx) - mn
             bg[...,cv] += d[...,np.newaxis]
-        
+
         if copy:
             QtWidgets.QApplication.clipboard().setImage(self.png)
         elif toBytes:

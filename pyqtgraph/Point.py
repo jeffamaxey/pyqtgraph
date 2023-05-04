@@ -42,7 +42,7 @@ class Point(QtCore.QPointF):
         elif i == 1:
             return self.y()
         else:
-            raise IndexError("Point has no index %s" % str(i))
+            raise IndexError(f"Point has no index {str(i)}")
 
     def __iter__(self):
         yield(self.x())
@@ -54,7 +54,7 @@ class Point(QtCore.QPointF):
         elif i == 1:
             return self.setY(x)
         else:
-            raise IndexError("Point has no index %s" % str(i))
+            raise IndexError(f"Point has no index {str(i)}")
         
     def __radd__(self, a):
         return self._math_('__radd__', a)
@@ -123,9 +123,7 @@ class Point(QtCore.QPointF):
             The angle between two vectors
         """
         rads = atan2(self.y(), self.x()) - atan2(a.y(), a.x())
-        if units == "radians":
-            return rads
-        return degrees(rads)
+        return rads if units == "radians" else degrees(rads)
     
     def dot(self, a):
         """Returns the dot product of a and this Point."""

@@ -190,11 +190,7 @@ MS_ZOOM_LEVEL = ZoomLevel([
 def getOffsetFromUtc():
     """Retrieve the utc offset respecting the daylight saving time"""
     ts = time.localtime()
-    if ts.tm_isdst:
-        utc_offset = time.altzone
-    else:
-        utc_offset = time.timezone
-    return utc_offset
+    return time.altzone if ts.tm_isdst else time.timezone
 
 
 class DateAxisItem(AxisItem):
@@ -263,8 +259,7 @@ class DateAxisItem(AxisItem):
     def tickValues(self, minVal, maxVal, size):
         density = (maxVal - minVal) / size
         self.setZoomLevelForDensity(density)
-        values = self.zoomLevel.tickValues(minVal, maxVal, minSpc=self.minSpacing)
-        return values
+        return self.zoomLevel.tickValues(minVal, maxVal, minSpc=self.minSpacing)
 
     def setZoomLevelForDensity(self, density):
         """

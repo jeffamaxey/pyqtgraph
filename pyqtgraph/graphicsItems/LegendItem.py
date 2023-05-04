@@ -79,22 +79,21 @@ class LegendItem(GraphicsWidget, GraphicsWidgetAnchor):
         if size is not None:
             self.setGeometry(QtCore.QRectF(0, 0, self.size[0], self.size[1]))
 
-        if sampleType is not None:
-            if not issubclass(sampleType, GraphicsWidget):
-                raise RuntimeError("Only classes of type `GraphicsWidgets` "
-                                   "are allowed as `sampleType`")
-            self.sampleType = sampleType
-        else:
+        if sampleType is None:
             self.sampleType = ItemSample
 
+        elif not issubclass(sampleType, GraphicsWidget):
+            raise RuntimeError("Only classes of type `GraphicsWidgets` "
+                               "are allowed as `sampleType`")
+        else:
+            self.sampleType = sampleType
         self.opts = {
             'pen': fn.mkPen(pen),
             'brush': fn.mkBrush(brush),
             'labelTextColor': labelTextColor,
             'labelTextSize': labelTextSize,
             'offset': offset,
-        }
-        self.opts.update(kwargs)
+        } | kwargs
 
     def setSampleType(self, sample):
         """Set the new sample item claspes"""
@@ -214,10 +213,7 @@ class LegendItem(GraphicsWidget, GraphicsWidgetAnchor):
         """
         label = LabelItem(name, color=self.opts['labelTextColor'],
                           justify='left', size=self.opts['labelTextSize'])
-        if isinstance(item, self.sampleType):
-            sample = item
-        else:
-            sample = self.sampleType(item)
+        sample = item if isinstance(item, self.sampleType) else self.sampleType(item)
         self.items.append((sample, label))
         self._addItemToLayout(sample, label)
         self.updateSize()
@@ -306,8 +302,7 @@ class LegendItem(GraphicsWidget, GraphicsWidgetAnchor):
             row_height = 0
             col_width = 0
             for col in range(self.layout.columnCount()):
-                item = self.layout.itemAt(row, col)
-                if item:
+                if item := self.layout.itemAt(row, col):
                     col_width += item.width() + 3
                     row_height = max(row_height, item.height())
             width = max(width, col_width)

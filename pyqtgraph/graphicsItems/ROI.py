@@ -199,8 +199,7 @@ class ROI(GraphicsObject):
         return self.stateCopy()
 
     def stateCopy(self):
-        sc = {}
-        sc['pos'] = Point(self.state['pos'])
+        sc = {'pos': Point(self.state['pos'])}
         sc['size'] = Point(self.state['size'])
         sc['angle'] = self.state['angle']
         return sc
@@ -211,10 +210,11 @@ class ROI(GraphicsObject):
         
         Combined with setState(), this allows ROIs to be easily saved and 
         restored."""
-        state = {}
-        state['pos'] = tuple(self.state['pos'])
-        state['size'] = tuple(self.state['size'])
-        state['angle'] = self.state['angle']
+        state = {
+            'pos': tuple(self.state['pos']),
+            'size': tuple(self.state['size']),
+            'angle': self.state['angle'],
+        }
         return state
     
     def setState(self, state, update=True):
@@ -279,13 +279,12 @@ class ROI(GraphicsObject):
         """
         if update not in (True, False):
             raise TypeError("update argument must be bool")
-        
+
         if y is None:
             pos = Point(pos)
+        elif isinstance(y, bool):
+            raise TypeError("Positional arguments to setPos() must be numerical.")
         else:
-            # avoid ambiguity where update is provided as a positional argument
-            if isinstance(y, bool):
-                raise TypeError("Positional arguments to setPos() must be numerical.")
             pos = Point(pos, y)
 
         self.state['pos'] = pos
@@ -400,20 +399,16 @@ class ROI(GraphicsObject):
         Also accepts *update* and *finish* arguments (see setPos() for a description of these).
         """
 
-        if len(args) == 1:
-            pt = args[0]
-        else:
-            pt = args
-            
+        pt = args[0] if len(args) == 1 else args
         newState = self.stateCopy()
         newState['pos'] = newState['pos'] + pt
-        
+
         snap = kargs.get('snap', None)
         if snap is None:
             snap = self.translateSnap
         if snap is not False:
             newState['pos'] = self.getSnapPosition(newState['pos'], snap=snap)
-        
+
         if self.maxBounds is not None:
             r = self.stateRect(newState)
             d = Point(0,0)
@@ -426,7 +421,7 @@ class ROI(GraphicsObject):
             elif self.maxBounds.bottom() < r.bottom():
                 d[1] = self.maxBounds.bottom() - r.bottom()
             newState['pos'] += d
-        
+
         update = kargs.get('update', True)
         finish = kargs.get('finish', True)
         self.setPos(newState['pos'], update=update, finish=finish)
@@ -636,13 +631,14 @@ class ROI(GraphicsObject):
         """
         Return the index of *handle* in the list of this ROI's handles.
         """
-        if isinstance(handle, Handle):
-            index = [i for i, info in enumerate(self.handles) if info['item'] is handle]    
-            if len(index) == 0:
-                raise Exception("Cannot return handle index; not attached to this ROI")
+        if not isinstance(handle, Handle):
+            return handle
+        if index := [
+            i for i, info in enumerate(self.handles) if info['item'] is handle
+        ]:
             return index[0]
         else:
-            return handle
+            raise Exception("Cannot return handle index; not attached to this ROI")
         
     def removeHandle(self, handle):
         """Remove a handle from this ROI. Argument may be either a Handle 
@@ -682,10 +678,7 @@ class ROI(GraphicsObject):
         The format returned is a list of (name, pos) tuples.
         """
         if index is None:
-            positions = []
-            for h in self.handles:
-                positions.append((h['name'], h['pos']))
-            return positions
+            return [(h['name'], h['pos']) for h in self.handles]
         else:
             return (self.handles[index]['name'], self.handles[index]['pos'])
             
@@ -695,10 +688,7 @@ class ROI(GraphicsObject):
         The format returned is a list of (name, pos) tuples.
         """
         if index is None:
-            positions = []
-            for h in self.handles:
-                positions.append((h['name'], h['item'].scenePos()))
-            return positions
+            return [(h['name'], h['item'].scenePos()) for h in self.handles]
         else:
             return (self.handles[index]['name'], self.handles[index]['item'].scenePos())
         
@@ -757,10 +747,7 @@ class ROI(GraphicsObject):
         
     def _makePen(self):
         # Generate the pen color for this ROI based on its current state.
-        if self.mouseHovering:
-            return self.hoverPen
-        else:
-            return self.pen
+        return self.hoverPen if self.mouseHovering else self.pen
 
     def contextMenuEnabled(self):
         return self.removable
@@ -1030,23 +1017,22 @@ class ROI(GraphicsObject):
             for k in list(state.keys()):
                 if state[k] != self.lastState[k]:
                     changed = True
-        
+
         self.prepareGeometryChange()
         if changed:
             ## Move all handles to match the current configuration of the ROI
             for h in self.handles:
                 if h['item'] in self.childItems():
                     p = h['pos']
-                    h['item'].setPos(h['pos'] * self.state['size'])
-                    
+                    h['item'].setPos(p * self.state['size'])
             self.update()
             self.sigRegionChanged.emit(self)
         elif self.freeHandleMoved:
             self.sigRegionChanged.emit(self)
-            
+
         self.freeHandleMoved = False
         self.lastState = self.getState()
-            
+
         if finish:
             self.stateChangeFinished()
             self.informViewBoundsChanged()
@@ -1102,29 +1088,29 @@ class ROI(GraphicsObject):
         """
         ## Determine shape of array along ROI axes
         dShape = (data.shape[axes[0]], data.shape[axes[1]])
-        
+
         ## Determine transform that maps ROI bounding box to image coordinates
         try:
             tr = self.sceneTransform() * fn.invertQTransform(img.sceneTransform())
         except np.linalg.linalg.LinAlgError:
             return None
-            
+
         ## Modify transform to scale from image coords to data coords
         axisOrder = img.axisOrder
         if axisOrder == 'row-major':
             tr.scale(float(dShape[1]) / img.width(), float(dShape[0]) / img.height())
         else:
             tr.scale(float(dShape[0]) / img.width(), float(dShape[1]) / img.height())
-        
+
         ## Transform ROI bounds into data bounds
         dataBounds = tr.mapRect(self.boundingRect())
-        
+
         ## Intersect transformed ROI bounds with data bounds
         if axisOrder == 'row-major':
             intBounds = dataBounds.intersected(QtCore.QRectF(0, 0, dShape[1], dShape[0]))
         else:
             intBounds = dataBounds.intersected(QtCore.QRectF(0, 0, dShape[0], dShape[1]))
-        
+
         ## Determine index values to use when referencing the array. 
         bounds = (
             (int(min(intBounds.left(), intBounds.right())), int(1+max(intBounds.left(), intBounds.right()))),
@@ -1132,15 +1118,14 @@ class ROI(GraphicsObject):
         )
         if axisOrder == 'row-major':
             bounds = bounds[::-1]
-        
-        if returnSlice:
-            ## Create slice objects
-            sl = [slice(None)] * data.ndim
-            sl[axes[0]] = slice(*bounds[0])
-            sl[axes[1]] = slice(*bounds[1])
-            return tuple(sl), tr
-        else:
+
+        if not returnSlice:
             return bounds, tr
+        ## Create slice objects
+        sl = [slice(None)] * data.ndim
+        sl[axes[0]] = slice(*bounds[0])
+        sl[axes[1]] = slice(*bounds[1])
+        return tuple(sl), tr
 
     def getArrayRegion(self, data, img, axes=(0,1), returnMappedCoords=False, **kwds):
         r"""Use the position and orientation of this ROI relative to an imageItem
@@ -1180,25 +1165,30 @@ class ROI(GraphicsObject):
         """
         # this is a hidden argument for internal use
         fromBR = kwds.pop('fromBoundingRect', False)
-        
+
         # Automaticaly compute missing parameters
         _shape, _vectors, _origin = self.getAffineSliceParams(data, img, axes, fromBoundingRect=fromBR)
-        
+
         # Replace them with user defined parameters if defined
         shape = kwds.pop('shape', _shape)
         vectors = kwds.pop('vectors', _vectors)
         origin = kwds.pop('origin', _origin)
-        
+
         if not returnMappedCoords:
-            rgn = fn.affineSlice(data, shape=shape, vectors=vectors, origin=origin, axes=axes, **kwds)
-            return rgn
-        else:
-            kwds['returnCoords'] = True
-            result, coords = fn.affineSlice(data, shape=shape, vectors=vectors, origin=origin, axes=axes, **kwds)
-            
-            ### map coordinates and return
-            mapped = fn.transformCoordinates(img.transform(), coords)
-            return result, mapped
+            return fn.affineSlice(
+                data,
+                shape=shape,
+                vectors=vectors,
+                origin=origin,
+                axes=axes,
+                **kwds
+            )
+        kwds['returnCoords'] = True
+        result, coords = fn.affineSlice(data, shape=shape, vectors=vectors, origin=origin, axes=axes, **kwds)
+
+        ### map coordinates and return
+        mapped = fn.transformCoordinates(img.transform(), coords)
+        return result, mapped
 
     def _getArrayRegionForArbitraryShape(self, data, img, axes=(0,1), returnMappedCoords=False, **kwds):
         """
@@ -1230,10 +1220,7 @@ class ROI(GraphicsObject):
         shape[axes[1]] = sliced.shape[axes[1]]
         mask = mask.reshape(shape)
 
-        if returnMappedCoords:
-            return sliced * mask, mappedCoords
-        else:
-            return sliced * mask
+        return (sliced * mask, mappedCoords) if returnMappedCoords else sliced * mask
 
     def getAffineSliceParams(self, data, img, axes=(0,1), fromBoundingRect=False):
         """
@@ -1248,31 +1235,29 @@ class ROI(GraphicsObject):
         """
         if self.scene() is not img.scene():
             raise Exception("ROI and target item must be members of the same scene.")
-        
+
         origin = img.mapToData(self.mapToItem(img, QtCore.QPointF(0, 0)))
-        
+
         ## vx and vy point in the directions of the slice axes, but must be scaled properly
         vx = img.mapToData(self.mapToItem(img, QtCore.QPointF(1, 0))) - origin
         vy = img.mapToData(self.mapToItem(img, QtCore.QPointF(0, 1))) - origin
-        
+
         lvx = hypot(vx.x(), vx.y())  # length
         lvy = hypot(vy.x(), vy.y())  # length
         ##img.width is number of pixels, not width of item.
         ##need pxWidth and pxHeight instead of pxLen ?
         sx = 1.0 / lvx
         sy = 1.0 / lvy
-        
+
         vectors = ((vx.x()*sx, vx.y()*sx), (vy.x()*sy, vy.y()*sy))
         if fromBoundingRect is True:
             shape = self.boundingRect().width(), self.boundingRect().height()
             origin = img.mapToData(self.mapToItem(img, self.boundingRect().topLeft()))
-            origin = (origin.x(), origin.y())
         else:
             shape = self.state['size']
-            origin = (origin.x(), origin.y())
-        
+        origin = (origin.x(), origin.y())
         shape = [abs(shape[0]/sx), abs(shape[1]/sy)]
-        
+
         if img.axisOrder == 'row-major':
             # transpose output
             vectors = vectors[::-1]
@@ -1400,11 +1385,8 @@ class Handle(UIGraphicsItem):
             for btn in [QtCore.Qt.MouseButton.LeftButton, QtCore.Qt.MouseButton.RightButton, QtCore.Qt.MouseButton.MiddleButton]:
                 if (self.acceptedMouseButtons() & btn) and ev.acceptClicks(btn):
                     hover=True
-                    
-        if hover:
-            self.currentPen = self.hoverPen
-        else:
-            self.currentPen = self.pen
+
+        self.currentPen = self.hoverPen if hover else self.pen
         self.update()
 
     def mouseClickEvent(self, ev):
@@ -1645,11 +1627,7 @@ class RectROI(ROI):
     """
     def __init__(self, pos, size, centered=False, sideScalers=False, **args):
         ROI.__init__(self, pos, size, **args)
-        if centered:
-            center = [0.5, 0.5]
-        else:
-            center = [0, 0]
-            
+        center = [0.5, 0.5] if centered else [0, 0]
         self.addScaleHandle([1, 1], center)
         if sideScalers:
             self.addScaleHandle([1, 0.5], [center[0], 0.5])
@@ -1746,8 +1724,7 @@ class MultiRectROI(QtWidgets.QGraphicsObject):
     def getHandlePositions(self):
         """Return the positions of all handles in local coordinates."""
         pos = [self.mapFromScene(self.lines[0].getHandles()[0].scenePos())]
-        for l in self.lines:
-            pos.append(self.mapFromScene(l.getHandles()[1].scenePos()))
+        pos.extend(self.mapFromScene(l.getHandles()[1].scenePos()) for l in self.lines)
         return pos
         
     def getArrayRegion(self, arr, img=None, axes=(0,1), **kwds):
@@ -1767,17 +1744,17 @@ class MultiRectROI(QtWidgets.QGraphicsObject):
                 continue
             rgns.append(rgn)
             #print l.state['size']
-            
+
         ## make sure orthogonal axis is the same size
         ## (sometimes fp errors cause differences)
         if img.axisOrder == 'row-major':
             axes = axes[::-1]
-        ms = min([r.shape[axes[1]] for r in rgns])
+        ms = min(r.shape[axes[1]] for r in rgns)
         sl = [slice(None)] * rgns[0].ndim
         sl[axes[1]] = slice(0,ms)
         rgns = [r[tuple(sl)] for r in rgns]
         #print [r.shape for r in rgns], axes
-        
+
         return np.concatenate(rgns, axis=axes[0])
         
     def addSegment(self, pos=(0,0), scaleHandle=False, connectTo=None):
@@ -1890,26 +1867,20 @@ class EllipseROI(ROI):
            arr = ROI.getArrayRegion(self, arr, img, axes,
                                     returnMappedCoords, **kwds)
         if arr is None or arr.shape[axes[0]] == 0 or arr.shape[axes[1]] == 0:
-            if returnMappedCoords:
-                return arr, mappedCoords
-            else:
-                return arr
+            return (arr, mappedCoords) if returnMappedCoords else arr
         w = arr.shape[axes[0]]
         h = arr.shape[axes[1]]
 
         ## generate an ellipsoidal mask
         mask = np.fromfunction(lambda x,y: np.hypot(((x+0.5)/(w/2.)-1), ((y+0.5)/(h/2.)-1)) < 1, (w, h))
-        
+
         # reshape to match array axes
         if axes[0] > axes[1]:
             mask = mask.T
         shape = [(n if i in axes else 1) for i,n in enumerate(arr.shape)]
         mask = mask.reshape(shape)
-        
-        if returnMappedCoords:
-            return arr * mask, mappedCoords
-        else:
-            return arr * mask
+
+        return (arr * mask, mappedCoords) if returnMappedCoords else arr * mask
     
     def shape(self):
         if self.path is None:
@@ -2002,8 +1973,7 @@ class PolygonROI(ROI):
         return p
     
     def stateCopy(self):
-        sc = {}
-        sc['pos'] = Point(self.state['pos'])
+        sc = {'pos': Point(self.state['pos'])}
         sc['size'] = Point(self.state['size'])
         sc['angle'] = self.state['angle']
         return sc
@@ -2152,10 +2122,7 @@ class PolyLineROI(ROI):
         
     def checkRemoveHandle(self, h):
         ## called when a handle is about to display its context menu
-        if self.closed:
-            return len(self.handles) > 3
-        else:
-            return len(self.handles) > 2
+        return len(self.handles) > 3 if self.closed else len(self.handles) > 2
         
     def paint(self, p, *args):
         pass
@@ -2283,9 +2250,16 @@ class LineSegmentROI(ROI):
 
         d = Point(imgPts[1] - imgPts[0])
         o = Point(imgPts[0])
-        rgn = fn.affineSlice(data, shape=(int(d.length()),), vectors=[Point(d.norm())], origin=o, axes=axes, order=order, returnCoords=returnMappedCoords, **kwds)
-
-        return rgn
+        return fn.affineSlice(
+            data,
+            shape=(int(d.length()),),
+            vectors=[Point(d.norm())],
+            origin=o,
+            axes=axes,
+            order=order,
+            returnCoords=returnMappedCoords,
+            **kwds
+        )
         
 
 class _PolyLineSegment(LineSegmentROI):

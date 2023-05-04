@@ -165,23 +165,27 @@ class AxisItem(GraphicsWidget):
         """
         for kwd,value in kwds.items():
             if kwd not in self.style:
-                raise NameError("%s is not a valid style argument." % kwd)
+                raise NameError(f"{kwd} is not a valid style argument.")
 
-            if kwd in ('tickLength', 'tickTextOffset', 'tickTextWidth', 'tickTextHeight'):
-                if not isinstance(value, int):
-                    raise ValueError("Argument '%s' must be int" % kwd)
+            if kwd in (
+                'tickLength',
+                'tickTextOffset',
+                'tickTextWidth',
+                'tickTextHeight',
+            ) and not isinstance(value, int):
+                raise ValueError(f"Argument '{kwd}' must be int")
 
-            if kwd == 'tickTextOffset':
-                if self.orientation in ('left', 'right'):
-                    self.style['tickTextOffset'][0] = value
-                else:
-                    self.style['tickTextOffset'][1] = value
-            elif kwd == 'stopAxisAtTick':
+            if kwd == 'stopAxisAtTick':
                 try:
                     assert len(value) == 2 and isinstance(value[0], bool) and isinstance(value[1], bool)
                 except:
                     raise ValueError("Argument 'stopAxisAtTick' must have type (bool, bool)")
                 self.style[kwd] = value
+            elif kwd == 'tickTextOffset':
+                if self.orientation in ('left', 'right'):
+                    self.style['tickTextOffset'][0] = value
+                else:
+                    self.style['tickTextOffset'][1] = value
             else:
                 self.style[kwd] = value
 
@@ -322,10 +326,10 @@ class AxisItem(GraphicsWidget):
         self.labelText = text or ""
         self.labelUnits = units or ""
         self.labelUnitPrefix = unitPrefix or ""
-        if len(args) > 0:
+        if args:
             self.labelStyle = args
         # Account empty string and `None` for units and text
-        visible = True if (text or units) else False
+        visible = bool((text or units))
         self.showLabel(visible)
         self._updateLabel()
 
@@ -343,13 +347,13 @@ class AxisItem(GraphicsWidget):
             else:
                 units = '(x%g)' % (1.0/self.autoSIPrefixScale)
         else:
-            units = '(%s%s)' % (self.labelUnitPrefix, self.labelUnits)
+            units = f'({self.labelUnitPrefix}{self.labelUnits})'
 
-        s = '%s %s' % (self.labelText, units)
+        s = f'{self.labelText} {units}'
 
-        style = ';'.join(['%s: %s' % (k, self.labelStyle[k]) for k in self.labelStyle])
+        style = ';'.join([f'{k}: {self.labelStyle[k]}' for k in self.labelStyle])
 
-        return "<span style='%s'>%s</span>" % (style, s)
+        return f"<span style='{style}'>{s}</span>"
 
     def _updateMaxTextSize(self, x):
         ## Informs that the maximum tick size orthogonal to the axis has
@@ -395,20 +399,19 @@ class AxisItem(GraphicsWidget):
     def _updateHeight(self):
         if not self.isVisible():
             h = 0
-        else:
-            if self.fixedHeight is None:
-                if not self.style['showValues']:
-                    h = 0
-                elif self.style['autoExpandTextSpace']:
-                    h = self.textHeight
-                else:
-                    h = self.style['tickTextHeight']
-                h += self.style['tickTextOffset'][1] if self.style['showValues'] else 0
-                h += max(0, self.style['tickLength'])
-                if self.label.isVisible():
-                    h += self.label.boundingRect().height() * 0.8
+        elif self.fixedHeight is None:
+            if not self.style['showValues']:
+                h = 0
+            elif self.style['autoExpandTextSpace']:
+                h = self.textHeight
             else:
-                h = self.fixedHeight
+                h = self.style['tickTextHeight']
+            h += self.style['tickTextOffset'][1] if self.style['showValues'] else 0
+            h += max(0, self.style['tickLength'])
+            if self.label.isVisible():
+                h += self.label.boundingRect().height() * 0.8
+        else:
+            h = self.fixedHeight
 
         self.setMaximumHeight(h)
         self.setMinimumHeight(h)
@@ -426,20 +429,19 @@ class AxisItem(GraphicsWidget):
     def _updateWidth(self):
         if not self.isVisible():
             w = 0
-        else:
-            if self.fixedWidth is None:
-                if not self.style['showValues']:
-                    w = 0
-                elif self.style['autoExpandTextSpace']:
-                    w = self.textWidth
-                else:
-                    w = self.style['tickTextWidth']
-                w += self.style['tickTextOffset'][0] if self.style['showValues'] else 0
-                w += max(0, self.style['tickLength'])
-                if self.label.isVisible():
-                    w += self.label.boundingRect().height() * 0.8  ## bounding rect is usually an overestimate
+        elif self.fixedWidth is None:
+            if not self.style['showValues']:
+                w = 0
+            elif self.style['autoExpandTextSpace']:
+                w = self.textWidth
             else:
-                w = self.fixedWidth
+                w = self.style['tickTextWidth']
+            w += self.style['tickTextOffset'][0] if self.style['showValues'] else 0
+            w += max(0, self.style['tickLength'])
+            if self.label.isVisible():
+                w += self.label.boundingRect().height() * 0.8  ## bounding rect is usually an overestimate
+        else:
+            w = self.fixedWidth
 
         self.setMaximumWidth(w)
         self.setMinimumWidth(w)
@@ -525,10 +527,7 @@ class AxisItem(GraphicsWidget):
 
     def updateAutoSIPrefix(self):
         if self.label.isVisible():
-            if self.logMode:
-                _range = 10**np.array(self.range)
-            else:
-                _range = self.range
+            _range = 10**np.array(self.range) if self.logMode else self.range
             (scale, prefix) = fn.siScale(max(abs(_range[0]*self.scale), abs(_range[1]*self.scale)))
             if self.labelUnits == '' and prefix in ['k', 'm']:  ## If we are not showing units, wait until 1e6 before scaling.
                 scale = 1.0
@@ -544,7 +543,7 @@ class AxisItem(GraphicsWidget):
         """Set the range of values displayed by the axis.
         Usually this is handled automatically by linking the axis to a ViewBox with :func:`linkToView <pyqtgraph.AxisItem.linkToView>`"""
         if not isfinite(mn) or not isfinite(mx):
-            raise Exception("Not setting range to [%s, %s]" % (str(mn), str(mx)))
+            raise Exception(f"Not setting range to [{str(mn)}, {str(mx)}]")
         self.range = [mn, mx]
         if self.autoSIPrefix:
             # XXX: Will already update once!
@@ -555,10 +554,7 @@ class AxisItem(GraphicsWidget):
 
     def linkedView(self):
         """Return the ViewBox this axis is linked to"""
-        if self._linkedView is None:
-            return None
-        else:
-            return self._linkedView()
+        return None if self._linkedView is None else self._linkedView()
 
     def _linkToView_internal(self, view):
         # We need this code to be available without override,
@@ -580,11 +576,10 @@ class AxisItem(GraphicsWidget):
         """Unlink this axis from a ViewBox."""
         oldView = self.linkedView()
         self._linkedView = None
-        if self.orientation in ['right', 'left']:
-            if oldView is not None:
+        if oldView is not None:
+            if self.orientation in ['right', 'left']:
                 oldView.sigYRangeChanged.disconnect(self.linkedViewChanged)
-        else:
-            if oldView is not None:
+            else:
                 oldView.sigXRangeChanged.disconnect(self.linkedViewChanged)
 
         if oldView is not None:
@@ -608,22 +603,21 @@ class AxisItem(GraphicsWidget):
 
     def boundingRect(self):
         linkedView = self.linkedView()
-        if linkedView is None or self.grid is False:
-            rect = self.mapRectFromParent(self.geometry())
-            ## extend rect if ticks go in negative direction
-            ## also extend to account for text that flows past the edges
-            tl = self.style['tickLength']
-            if self.orientation == 'left':
-                rect = rect.adjusted(0, -15, -min(0,tl), 15)
-            elif self.orientation == 'right':
-                rect = rect.adjusted(min(0,tl), -15, 0, 15)
-            elif self.orientation == 'top':
-                rect = rect.adjusted(-15, 0, 15, -min(0,tl))
-            elif self.orientation == 'bottom':
-                rect = rect.adjusted(-15, min(0,tl), 15, 0)
-            return rect
-        else:
+        if linkedView is not None and self.grid is not False:
             return self.mapRectFromParent(self.geometry()) | linkedView.mapRectToItem(self, linkedView.boundingRect())
+        rect = self.mapRectFromParent(self.geometry())
+        ## extend rect if ticks go in negative direction
+        ## also extend to account for text that flows past the edges
+        tl = self.style['tickLength']
+        if self.orientation == 'left':
+            rect = rect.adjusted(0, -15, -min(0,tl), 15)
+        elif self.orientation == 'right':
+            rect = rect.adjusted(min(0,tl), -15, 0, 15)
+        elif self.orientation == 'top':
+            rect = rect.adjusted(-15, 0, 15, -min(0,tl))
+        elif self.orientation == 'bottom':
+            rect = rect.adjusted(-15, min(0,tl), 15, 0)
+        return rect
 
     def paint(self, p, opt, widget):
         profiler = debug.Profiler()
@@ -684,10 +678,7 @@ class AxisItem(GraphicsWidget):
         """
 
         if levels is None:
-            if major is None:
-                levels = None
-            else:
-                levels = [(major, 0), (minor, 0)]
+            levels = None if major is None else [(major, 0), (minor, 0)]
         self._tickSpacing = levels
         self.picture = None
         self.update()
@@ -822,14 +813,7 @@ class AxisItem(GraphicsWidget):
 
     def logTickValues(self, minVal, maxVal, size, stdTicks):
 
-        ## start with the tick spacing given by tickValues().
-        ## Any level whose spacing is < 1 needs to be converted to log scale
-
-        ticks = []
-        for (spacing, t) in stdTicks:
-            if spacing >= 1.0:
-                ticks.append((spacing, t))
-
+        ticks = [(spacing, t) for spacing, t in stdTicks if spacing >= 1.0]
         if len(ticks) < 3:
             v1 = int(floor(minVal))
             v2 = int(ceil(maxVal))
@@ -888,11 +872,8 @@ class AxisItem(GraphicsWidget):
                 v, p = e.split("e")
                 sign = "⁻" if p[0] == "-" else ""
                 pot = "".join([convdict[pp] for pp in p[1:].lstrip("0")])
-                if v == "1":
-                    v = ""
-                else:
-                    v = v + "·"
-                dstrings.append(v + "10" + sign + pot)
+                v = "" if v == "1" else f"{v}·"
+                dstrings.append(f"{v}10{sign}{pot}")
             else:
                 dstrings.append(e)
         return dstrings

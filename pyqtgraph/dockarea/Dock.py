@@ -78,10 +78,7 @@ class Dock(QtWidgets.QWidget, DockDrop):
             self.hideTitleBar()
 
     def implements(self, name=None):
-        if name is None:
-            return ['dock']
-        else:
-            return name == 'dock'
+        return ['dock'] if name is None else name == 'dock'
 
     def setStretch(self, x=None, y=None):
         """
@@ -240,7 +237,7 @@ class Dock(QtWidgets.QWidget, DockDrop):
         self.sigClosed.emit(self)
 
     def __repr__(self):
-        return "<Dock %s %s>" % (self.name(), self.stretch())
+        return f"<Dock {self.name()} {self.stretch()}>"
 
     ## PySide bug: We need to explicitly redefine these methods
     ## or else drag/drop events will not be delivered.

@@ -19,11 +19,7 @@ class LabelItem(GraphicsWidget, GraphicsWidgetAnchor):
         GraphicsWidget.__init__(self, parent)
         GraphicsWidgetAnchor.__init__(self)
         self.item = QtWidgets.QGraphicsTextItem(self)
-        self.opts = {
-            'color': None,
-            'justify': 'center'
-        }
-        self.opts.update(args)
+        self.opts = {'color': None, 'justify': 'center'} | args
         self._sizeHint = {}
         self.setText(text)
         self.setAngle(angle)
@@ -48,21 +44,19 @@ class LabelItem(GraphicsWidget, GraphicsWidgetAnchor):
         opts = self.opts
         for k in args:
             opts[k] = args[k]
-        
-        optlist = []
-        
+
         color = self.opts['color']
         if color is None:
             color = getConfigOption('foreground')
         color = fn.mkColor(color)
-        optlist.append('color: ' + color.name())
+        optlist = [f'color: {color.name()}']
         if 'size' in opts:
             optlist.append('font-size: ' + opts['size'])
         if 'bold' in opts and opts['bold'] in [True, False]:
             optlist.append('font-weight: ' + {True:'bold', False:'normal'}[opts['bold']])
         if 'italic' in opts and opts['italic'] in [True, False]:
             optlist.append('font-style: ' + {True:'italic', False:'normal'}[opts['italic']])
-        full = "<span style='%s'>%s</span>" % ('; '.join(optlist), text)
+        full = f"<span style='{'; '.join(optlist)}'>{text}</span>"
         #print full
         self.item.setHtml(full)
         self.updateMin()

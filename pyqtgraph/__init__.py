@@ -3,6 +3,7 @@ PyQtGraph - Scientific Graphics and GUI Library for Python
 www.pyqtgraph.org
 """
 
+
 __version__ = '0.12.4.dev0'
 
 ### import all the goodies and add some helper functions for easy CLI use
@@ -19,23 +20,7 @@ from .Qt import QtCore, QtGui, QtWidgets
 from .Qt import exec_ as exec
 from .Qt import mkQApp
 
-## not really safe--If we accidentally create another QApplication, the process hangs (and it is very difficult to trace the cause)
-#if QtWidgets.QApplication.instance() is None:
-    #app = QtWidgets.QApplication([])
-
-              ## (import here to avoid massive error dump later on if numpy is not available)
-
-
-## in general openGL is poorly supported with Qt+GraphicsView.
-## we only enable it where the performance benefit is critical.
-## Note this only applies to 2D graphics; 3D graphics always use OpenGL.
-if 'linux' in sys.platform:  ## linux has numerous bugs in opengl implementation
-    useOpenGL = False
-elif 'darwin' in sys.platform: ## openGL can have a major impact on mac, but also has serious bugs
-    useOpenGL = False
-else:
-    useOpenGL = False  ## on windows there's a more even performance / bugginess tradeoff. 
-                
+useOpenGL = False
 CONFIG_OPTIONS = {
     'useOpenGL': useOpenGL, ## by default, this is platform-dependent (see widgets/GraphicsView). Set to True or False to explicitly enable/disable opengl.
     'leftButtonPan': True,  ## if false, left button drags a rubber band for zooming in viewbox
@@ -59,7 +44,7 @@ CONFIG_OPTIONS = {
 
 def setConfigOption(opt, value):
     if opt not in CONFIG_OPTIONS:
-        raise KeyError('Unknown configuration option "%s"' % opt)
+        raise KeyError(f'Unknown configuration option "{opt}"')
     if opt == 'imageAxisOrder' and value not in ('row-major', 'col-major'):
         raise ValueError('imageAxisOrder must be either "row-major" or "col-major"')
     CONFIG_OPTIONS[opt] = value
@@ -79,11 +64,11 @@ def getConfigOption(opt):
 
 
 def systemInfo():
-    print("sys.platform: %s" % sys.platform)
-    print("sys.version: %s" % sys.version)
+    print(f"sys.platform: {sys.platform}")
+    print(f"sys.version: {sys.version}")
     from .Qt import VERSION_INFO
-    print("qt bindings: %s" % VERSION_INFO)
-    
+    print(f"qt bindings: {VERSION_INFO}")
+
     global __version__
     rev = None
     if __version__ is None:  ## this code was probably checked out from bzr; look up the last-revision file
@@ -91,8 +76,8 @@ def systemInfo():
         if os.path.exists(lastRevFile):
             with open(lastRevFile, 'r') as fd:
                 rev = fd.read().strip()
-    
-    print("pyqtgraph: %s; %s" % (__version__, rev))
+
+    print(f"pyqtgraph: {__version__}; {rev}")
     print("config:")
     import pprint
     pprint.pprint(CONFIG_OPTIONS)
@@ -108,7 +93,7 @@ def renamePyc(startDir):
     ### Note that this is no longer necessary for python 3.2; from PEP 3147:
     ### "If the py source file is missing, the pyc file inside __pycache__ will be ignored. 
     ### This eliminates the problem of accidental stale pyc file imports."
-    
+
     printed = False
     startDir = os.path.abspath(startDir)
     for path, dirs, files in os.walk(startDir):
@@ -117,7 +102,7 @@ def renamePyc(startDir):
         for f in files:
             fileName = os.path.join(path, f)
             base, ext = os.path.splitext(fileName)
-            py = base + ".py"
+            py = f"{base}.py"
             if ext == '.pyc' and not os.path.isfile(py):
                 if not printed:
                     print("NOTE: Renaming orphaned .pyc files:")
@@ -128,8 +113,8 @@ def renamePyc(startDir):
                     if not os.path.exists(name2):
                         break
                     n += 1
-                print("  " + fileName + "  ==>")
-                print("  " + name2)
+                print(f"  {fileName}  ==>")
+                print(f"  {name2}")
                 os.rename(fileName, name2)
                 
 path = os.path.split(__file__)[0]
@@ -404,7 +389,7 @@ def plot(*args, **kargs):
     windowTitle = pwArgs.pop("title", "PlotWidget")
     w = PlotWidget(**pwArgs)
     w.setWindowTitle(windowTitle)
-    if len(args) > 0 or len(dataArgs) > 0:
+    if args or dataArgs:
         w.plot(*args, **dataArgs)
     plots.append(w)
     w.show()

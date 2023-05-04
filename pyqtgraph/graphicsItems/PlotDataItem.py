@@ -363,19 +363,15 @@ class PlotDataItem(GraphicsObject):
     # Compatibility with direct property access to previous xData and yData structures:
     @property
     def xData(self):
-        if self._dataset is None: return None
-        return self._dataset.x
+        return None if self._dataset is None else self._dataset.x
         
     @property
     def yData(self):
-        if self._dataset is None: return None
-        return self._dataset.y
+        return None if self._dataset is None else self._dataset.y
 
     def implements(self, interface=None):
         ints = ['plotData']
-        if interface is None:
-            return ints
-        return interface in ints
+        return ints if interface is None else interface in ints
 
     def name(self):
         """ Returns the name that represents this item in the legend. """
@@ -498,13 +494,8 @@ class PlotDataItem(GraphicsObject):
         The argument can be a :class:`QtGui.QPen` or any combination of arguments accepted by 
         :func:`pyqtgraph.mkPen() <pyqtgraph.mkPen>`.
         """
-        if args[0] is None:
-            pen = None
-        else:
-            pen = fn.mkPen(*args, **kargs)
+        pen = None if args[0] is None else fn.mkPen(*args, **kargs)
         self.opts['shadowPen'] = pen
-        #for c in self.curves:
-            #c.setPen(pen)
         #self.update()
         self.updateItems(styleUpdate=True)
 
@@ -513,10 +504,7 @@ class PlotDataItem(GraphicsObject):
         Sets the :class:`QtGui.QBrush` used to fill the area under the curve.
         See :func:`mkBrush() <pyqtgraph.functions.mkBrush>`) for arguments.
         """
-        if args[0] is None:
-            brush = None
-        else:
-            brush = fn.mkBrush(*args, **kargs)
+        brush = None if args[0] is None else fn.mkBrush(*args, **kargs)
         if self.opts['fillBrush'] == brush:
             return
         self.opts['fillBrush'] = brush
@@ -602,19 +590,17 @@ class PlotDataItem(GraphicsObject):
         ==============  =================================================================
         """
         changed = False
-        if ds is not None:
-            if self.opts['downsample'] != ds:
-                changed = True
-                self.opts['downsample'] = ds
+        if ds is not None and self.opts['downsample'] != ds:
+            changed = True
+            self.opts['downsample'] = ds
 
         if auto is not None and self.opts['autoDownsample'] != auto:
             self.opts['autoDownsample'] = auto
             changed = True
 
-        if method is not None:
-            if self.opts['downsampleMethod'] != method:
-                changed = True
-                self.opts['downsampleMethod'] = method
+        if method is not None and self.opts['downsampleMethod'] != method:
+            changed = True
+            self.opts['downsampleMethod'] = method
 
         if changed:
             self._datasetMapped  = None  # invalidata mapped data
@@ -651,8 +637,7 @@ class PlotDataItem(GraphicsObject):
                         Default is 3.0
         =============== ================================================================
         """
-        if hysteresis < 1.0: 
-            hysteresis = 1.0
+        hysteresis = max(hysteresis, 1.0)
         self.opts['dynamicRangeHyst']  = hysteresis
 
         if limit == self.opts['dynamicRangeLimit']:
@@ -684,13 +669,13 @@ class PlotDataItem(GraphicsObject):
                 'stepMode=True is deprecated and will result in an error after October 2022. Use stepMode="center" instead.',
                 DeprecationWarning, stacklevel=3
             )
-        if 'decimate' in kargs.keys():
+        if 'decimate' in kargs:
             warnings.warn(
                 'The decimate keyword has been deprecated. It has no effect and may result in an error in releases after October 2022. ',
                 DeprecationWarning, stacklevel=2
             )
-        
-        if 'identical' in kargs.keys():
+
+        if 'identical' in kargs:
             warnings.warn(
                 'The identical keyword has been deprecated. It has no effect may result in an error in releases after October 2022. ',
                 DeprecationWarning, stacklevel=2
@@ -708,7 +693,7 @@ class PlotDataItem(GraphicsObject):
             elif dt == 'Nx2array':
                 x = data[:,0]
                 y = data[:,1]
-            elif dt == 'recarray' or dt == 'dictOfLists':
+            elif dt in ['recarray', 'dictOfLists']:
                 if 'x' in data:
                     x = np.array(data['x'])
                 if 'y' in data:
@@ -725,27 +710,23 @@ class PlotDataItem(GraphicsObject):
                 y = data.view(np.ndarray)
                 x = data.xvals(0).view(np.ndarray)
             else:
-                raise Exception('Invalid data type %s' % type(data))
+                raise Exception(f'Invalid data type {type(data)}')
 
         elif len(args) == 2:
             seq = ('listOfValues', 'MetaArray', 'empty')
             dtyp = dataType(args[0]), dataType(args[1])
             if dtyp[0] not in seq or dtyp[1] not in seq:
-                raise Exception('When passing two unnamed arguments, both must be a list or array of values. (got %s, %s)' % (str(type(args[0])), str(type(args[1]))))
+                raise Exception(
+                    f'When passing two unnamed arguments, both must be a list or array of values. (got {str(type(args[0]))}, {str(type(args[1]))})'
+                )
             if not isinstance(args[0], np.ndarray):
                 #x = np.array(args[0])
-                if dtyp[0] == 'MetaArray':
-                    x = args[0].asarray()
-                else:
-                    x = np.array(args[0])
+                x = args[0].asarray() if dtyp[0] == 'MetaArray' else np.array(args[0])
             else:
                 x = args[0].view(np.ndarray)
             if not isinstance(args[1], np.ndarray):
                 #y = np.array(args[1])
-                if dtyp[1] == 'MetaArray':
-                    y = args[1].asarray()
-                else:
-                    y = np.array(args[1])
+                y = args[1].asarray() if dtyp[1] == 'MetaArray' else np.array(args[1])
             else:
                 y = args[1].view(np.ndarray)
 
@@ -769,14 +750,21 @@ class PlotDataItem(GraphicsObject):
         if 'connect' in kargs:
             self.opts['connect'] = kargs['connect']
             self.setProperty('styleWasChanged', True)
-            
+
         if 'skipFiniteCheck' in kargs:
             self.opts['skipFiniteCheck'] = kargs['skipFiniteCheck']
 
         ## if symbol pen/brush are given with no previously set symbol, then assume symbol is 'o'
-        if 'symbol' not in kargs and ('symbolPen' in kargs or 'symbolBrush' in kargs or 'symbolSize' in kargs):
-            if self.opts['symbol'] is None: 
-                kargs['symbol'] = 'o'
+        if (
+            'symbol' not in kargs
+            and (
+                'symbolPen' in kargs
+                or 'symbolBrush' in kargs
+                or 'symbolSize' in kargs
+            )
+            and self.opts['symbol'] is None
+        ):
+            kargs['symbol'] = 'o'
 
         if 'brush' in kargs:
             kargs['fillBrush'] = kargs['brush']
@@ -785,18 +773,6 @@ class PlotDataItem(GraphicsObject):
             if k in kargs:
                 self.opts[k] = kargs[k]
                 self.setProperty('styleWasChanged', True)
-        #curveArgs = {}
-        #for k in ['pen', 'shadowPen', 'fillLevel', 'brush']:
-            #if k in kargs:
-                #self.opts[k] = kargs[k]
-            #curveArgs[k] = self.opts[k]
-
-        #scatterArgs = {}
-        #for k,v in [('symbolPen','pen'), ('symbolBrush','brush'), ('symbol','symbol')]:
-            #if k in kargs:
-                #self.opts[k] = kargs[k]
-            #scatterArgs[v] = self.opts[k]
-
         if y is None or len(y) == 0: # empty data is represented as None
             yData = None
         else: # actual data is represented by ndarray
@@ -805,7 +781,7 @@ class PlotDataItem(GraphicsObject):
             yData = y.view(np.ndarray)
             if x is None:
                 x = np.arange(len(y))
-                
+
         if x is None or len(x)==0: # empty data is represented as None
             xData = None
         else: # actual data is represented by ndarray
@@ -836,7 +812,7 @@ class PlotDataItem(GraphicsObject):
         # - ScatterPlotItem losing per-point style information
         # - PlotDataItem performing multiple unnecessary setData calls on initialization
         styleUpdate=True
-        
+
         curveArgs = {}
         scatterArgs = {}
 
@@ -876,20 +852,18 @@ class PlotDataItem(GraphicsObject):
         x = dataset.x
         y = dataset.y
         #scatterArgs['mask'] = self.dataMask
-        if(
+        if (
             self.opts['pen'] is not None 
             or (self.opts['fillBrush'] is not None and self.opts['fillLevel'] is not None)
             ): # draw if visible...
-            # auto-switch to indicate non-finite values as interruptions in the curve:
-            if isinstance(curveArgs['connect'], str) and curveArgs['connect'] == 'auto': # connect can also take a boolean array
+            if isinstance(curveArgs['connect'], str) and curveArgs['connect'] == 'auto':
                 if dataset.containsNonfinite is None:
                     curveArgs['connect'] = 'all' # this is faster, but silently connects the curve across any non-finite values
+                elif dataset.containsNonfinite:
+                    curveArgs['connect'] = 'finite'
                 else:
-                    if dataset.containsNonfinite:
-                        curveArgs['connect'] = 'finite'
-                    else:
-                        curveArgs['connect'] = 'all' # all points can be connected, and no further check is needed.
-                        curveArgs['skipFiniteCheck'] = True
+                    curveArgs['connect'] = 'all' # all points can be connected, and no further check is needed.
+                    curveArgs['skipFiniteCheck'] = True
             self.curve.setData(x=x, y=y, **curveArgs)
             self.curve.show()
         else: # ...hide if not.

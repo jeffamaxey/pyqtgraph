@@ -3,6 +3,7 @@ This example demonstrates linearized ColorMap objects using colormap.makeMonochr
 or using the `ColorMap`'s `linearize()` method.
 """
 
+
 import numpy as np
 
 import pyqtgraph as pg
@@ -18,7 +19,6 @@ ramp_list = [
     for name in name_list
 ]
 
-cm_list = []
 # Create a gray ramp for demonstrating the idea:
 cm = pg.ColorMap( None, [
     QtGui.QColor(  0,   0,   0),
@@ -27,8 +27,7 @@ cm = pg.ColorMap( None, [
     QtGui.QColor(240, 240, 240),
     QtGui.QColor(255, 255, 255)
 ])
-cm_list.append(('Distorted gray ramp',cm))
-
+cm_list = [('Distorted gray ramp', cm)]
 # Create a rainbow scale in HSL color space:
 length = 41
 col_list = []
@@ -44,7 +43,7 @@ cm_list.append( ('Distorted HSL spiral', cm) )
 for example_idx in range(3):
     previous = None
     col_list = []
-    for idx in range(8):
+    for _ in range(8):
         values = np.random.random((3))
         if previous is not None:
             intermediate = (values + previous) / 2
@@ -80,7 +79,7 @@ num_bars = 0
 
 def add_heading(lw, name):
     global num_bars
-    lw.addLabel('=== '+name+' ===')
+    lw.addLabel(f'=== {name} ===')
     num_bars += 1
     lw.nextRow()
 

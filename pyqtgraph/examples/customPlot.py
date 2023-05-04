@@ -50,16 +50,16 @@ class CustomTickSliderItem(pg.TickSliderItem):
         length = self.length
 
         lengthIncludingPadding = length + self.tickSize + 2
-        
+
         self._range = viewRange
-        
+
         for pos in self.all_ticks:
             tickValueIncludingPadding = (pos - viewRange[0]) / (viewRange[1] - viewRange[0])
             tickValue = (tickValueIncludingPadding*lengthIncludingPadding - origin) / length
-            
+
             # Convert from np.bool_ to bool for setVisible
-            visible = bool(tickValue >= 0 and tickValue <= 1)
-            
+            visible = tickValue >= 0 and tickValue <= 1
+
             tick = self.all_ticks[pos]
             tick.setVisible(visible)
 

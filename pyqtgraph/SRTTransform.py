@@ -14,7 +14,7 @@ class SRTTransform(QtGui.QTransform):
     def __init__(self, init=None):
         QtGui.QTransform.__init__(self)
         self.reset()
-        
+
         if init is None:
             return
         elif isinstance(init, dict):
@@ -31,7 +31,9 @@ class SRTTransform(QtGui.QTransform):
         elif isinstance(init, QtGui.QMatrix4x4):
             self.setFromMatrix4x4(init)
         else:
-            raise Exception("Cannot create SRTTransform from input type: %s" % str(type(init)))
+            raise Exception(
+                f"Cannot create SRTTransform from input type: {str(type(init))}"
+            )
 
         
     def getScale(self):
@@ -63,18 +65,13 @@ class SRTTransform(QtGui.QTransform):
         p1 = Point(tr.map(0., 0.))
         p2 = Point(tr.map(1., 0.))
         p3 = Point(tr.map(0., 1.))
-        
+
         dp2 = Point(p2-p1)
         dp3 = Point(p3-p1)
-        
+
         ## detect flipped axes
-        if dp2.angle(dp3, units="radians") > 0:
-            da = 0
-            sy = -1.0
-        else:
-            da = 0
-            sy = 1.0
-            
+        sy = -1.0 if dp2.angle(dp3, units="radians") > 0 else 1.0
+        da = 0
         self._state = {
             'pos': Point(p1),
             'scale': Point(dp2.length(), dp3.length() * sy),
@@ -86,7 +83,7 @@ class SRTTransform(QtGui.QTransform):
         m = SRTTransform3D(m)
         angle, axis = m.getRotation()
         if angle != 0 and (axis[0] != 0 or axis[1] != 0 or axis[2] != 1):
-            print("angle: %s  axis: %s" % (str(angle), str(axis)))
+            print(f"angle: {str(angle)}  axis: {str(axis)}")
             raise Exception("Can only convert 4x4 matrix to 3x3 if rotation is around Z-axis.")
         self._state = {
             'pos': Point(m.getTranslation()),

@@ -149,8 +149,10 @@ class TickSliderItem(GraphicsWidget):
             transform.translate(-self.height(), 0)
             self.setTransform(transform)
         elif ort != 'bottom':
-            raise Exception("%s is not a valid orientation. Options are 'left', 'right', 'top', and 'bottom'" %str(ort))
-        
+            raise Exception(
+                f"{str(ort)} is not a valid orientation. Options are 'left', 'right', 'top', and 'bottom'"
+            )
+
         tr = QtGui.QTransform.fromTranslate(self.tickSize/2., 0)
         self.setTransform(tr, True)
     
@@ -218,10 +220,7 @@ class TickSliderItem(GraphicsWidget):
             self.removeTick(tick)
     
     def widgetLength(self):
-        if self.orientation in ['bottom', 'top']:
-            return self.width()
-        else:
-            return self.height()
+        return self.width() if self.orientation in ['bottom', 'top'] else self.height()
     
     def resizeEvent(self, ev):
         wlen = max(40, self.widgetLength())
@@ -500,8 +499,7 @@ class GradientEditorItem(TickSliderItem):
         for tick in self.ticks.keys():
             if show:
                 tick.show()
-                orig = getattr(self, '_allowAdd_backup', None)
-                if orig: 
+                if orig := getattr(self, '_allowAdd_backup', None):
                     self.allowAdd = orig
             else:
                 self._allowAdd_backup = self.allowAdd
@@ -552,8 +550,8 @@ class GradientEditorItem(TickSliderItem):
         
         ## public
         if cm not in ['rgb', 'hsv']:
-            raise Exception("Unknown color mode %s. Options are 'rgb' and 'hsv'." % str(cm))
-        
+            raise Exception(f"Unknown color mode {str(cm)}. Options are 'rgb' and 'hsv'.")
+
         try:
             self.rgbAction.blockSignals(True)
             self.hsvAction.blockSignals(True)
@@ -563,7 +561,7 @@ class GradientEditorItem(TickSliderItem):
             self.rgbAction.blockSignals(False)
             self.hsvAction.blockSignals(False)
         self.colorMode = cm
-        
+
         self.sigTicksChanged.emit(self)
         self.sigGradientChangeFinished.emit(self)
 
@@ -643,8 +641,7 @@ class GradientEditorItem(TickSliderItem):
             g.setStops([(x, QtGui.QColor(t.color)) for t,x in ticks])
         elif self.colorMode == 'hsv':  ## HSV mode is approximated for display by interpolating 10 points between each stop
             ticks = self.listTicks()
-            stops = []
-            stops.append((ticks[0][1], ticks[0][0].color))
+            stops = [(ticks[0][1], ticks[0][0].color)]
             for i in range(1,len(ticks)):
                 x1 = ticks[i-1][1]
                 x2 = ticks[i][1]
@@ -669,29 +666,19 @@ class GradientEditorItem(TickSliderItem):
         ticks = self.listTicks()
         if x <= ticks[0][1]:
             c = ticks[0][0].color
-            if toQColor:
-                return QtGui.QColor(c)  # always copy colors before handing them out
-            else:
-                return c.getRgb()
+            return QtGui.QColor(c) if toQColor else c.getRgb()
         if x >= ticks[-1][1]:
             c = ticks[-1][0].color
-            if toQColor:
-                return QtGui.QColor(c)  # always copy colors before handing them out
-            else:
-                return c.getRgb()
-            
+            return QtGui.QColor(c) if toQColor else c.getRgb()
         x2 = ticks[0][1]
         for i in range(1,len(ticks)):
             x1 = x2
             x2 = ticks[i][1]
             if x1 <= x and x2 >= x:
                 break
-                
+
         dx = (x2-x1)
-        if dx == 0:
-            f = 0.
-        else:
-            f = (x-x1) / dx
+        f = 0. if dx == 0 else (x-x1) / dx
         c1 = ticks[i-1][0].color
         c2 = ticks[i][0].color
         if self.colorMode == 'rgb':
@@ -710,10 +697,7 @@ class GradientEditorItem(TickSliderItem):
             s = s1 * (1.-f) + s2 * f
             v = v1 * (1.-f) + v2 * f
             c = QtGui.QColor.fromHsv(int(h), int(s), int(v))
-            if toQColor:
-                return c
-            else:
-                return c.getRgb()
+            return c if toQColor else c.getRgb()
                     
     def getLookupTable(self, nPts, alpha=None):
         """
@@ -744,11 +728,7 @@ class GradientEditorItem(TickSliderItem):
         """Return True if any ticks have an alpha < 255"""
         
         ticks = self.listTicks()
-        for t in ticks:
-            if t[0].color.alpha() < 255:
-                return True
-            
-        return False
+        return any(t[0].color.alpha() < 255 for t in ticks)
             
     def isLookupTrivial(self):
         """Return True if the gradient has exactly two stops in it: black at 0.0 and white at 1.0"""
@@ -759,9 +739,7 @@ class GradientEditorItem(TickSliderItem):
             return False
         c1 = ticks[0][0].color.getRgb()
         c2 = ticks[1][0].color.getRgb()
-        if c1 != (0,0,0,255) or c2 != (255,255,255,255):
-            return False
-        return True
+        return c1 == (0,0,0,255) and c2 == (255,255,255,255)
         
     def addTick(self, x, color=None, movable=True, finish=True):
         """
@@ -795,10 +773,11 @@ class GradientEditorItem(TickSliderItem):
         for t in self.ticks:
             c = t.color
             ticks.append((self.ticks[t], c.getRgb()))
-        state = {'mode': self.colorMode, 
-                 'ticks': ticks,
-                 'ticksVisible': next(iter(self.ticks)).isVisible()}
-        return state
+        return {
+            'mode': self.colorMode,
+            'ticks': ticks,
+            'ticksVisible': next(iter(self.ticks)).isVisible(),
+        }
         
     def restoreState(self, state):
         """
@@ -859,10 +838,8 @@ class GradientEditorItem(TickSliderItem):
             self.linkedGradients[id(slaveGradient)] = fn
             self.sigGradientChanged.connect(fn)
             self.sigGradientChanged.emit(self)
-        else:
-            fn = self.linkedGradients.get(id(slaveGradient), None)
-            if fn:
-                self.sigGradientChanged.disconnect(fn)
+        elif fn := self.linkedGradients.get(id(slaveGradient), None):
+            self.sigGradientChanged.disconnect(fn)
 
 
 class Tick(QtWidgets.QGraphicsWidget):  ## NOTE: Making this a subclass of GraphicsObject instead results in

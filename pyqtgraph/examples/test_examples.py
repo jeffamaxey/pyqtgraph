@@ -90,9 +90,7 @@ for key in openglExamples:
     and tuple(map(int, Qt.PySide2.__version__.split("."))) < (5, 14, 2, 2), 
     reason="new PySide2 doesn't have loadUi functionality"
 )
-@pytest.mark.parametrize(
-    "frontend, f",
-    [
+@pytest.mark.parametrize("frontend, f", [
         pytest.param(
             frontend,
             f,
@@ -102,15 +100,10 @@ for key in openglExamples:
             ) if f[1] in conditionalExamples.keys() else (),
         )
         for frontend, f, in itertools.product(installedFrontends, files)
-    ],
-    ids = [
-        " {} - {} ".format(f[1], frontend)
-        for frontend, f in itertools.product(
+    ], ids=[f" {f[1]} - {frontend} " for frontend, f in itertools.product(
             installedFrontends,
             files
-        )
-    ]
-)
+        )])
 def testExamples(frontend, f):
     name, file = f
     global path
@@ -118,7 +111,7 @@ def testExamples(frontend, f):
     os.chdir(path)
     sys.stdout.write(f"{name}")
     sys.stdout.flush()
-    import1 = "import %s" % frontend if frontend != '' else ''
+    import1 = f"import {frontend}" if frontend != '' else ''
     import2 = os.path.splitext(os.path.split(fn)[1])[0]
     code = """
 try:

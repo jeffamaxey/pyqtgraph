@@ -83,7 +83,7 @@ class ColorBarItem(PlotItem):
         self.values    = values
         self._colorMap = None
         self.rounding  = rounding
-        self.horizontal = bool( orientation in ('h', 'horizontal') )
+        self.horizontal = orientation in ('h', 'horizontal')
 
         self.lo_prv, self.hi_prv = self.values # remember previous values while adjusting range
         self.lo_lim = None
@@ -136,10 +136,7 @@ class ColorBarItem(PlotItem):
         if colorMap is not None: self.setColorMap(colorMap)
 
         if interactive:
-            if self.horizontal:
-                align = 'vertical'
-            else:
-                align = 'horizontal'
+            align = 'vertical' if self.horizontal else 'horizontal'
             self.region = LinearRegionItem(
                 [63, 191], align, swapMode='block',
                 # span=(0.15, 0.85),  # limited span looks better, but disables grabbing the region
@@ -302,16 +299,14 @@ class ColorBarItem(PlotItem):
         # hi_new = self.hi_prv + (mean_val + 2*self.rounding) * top # make sure that we can always
         # lo_new = self.lo_prv + (mean_val + 2*self.rounding) * bot #    reach 2x the minimal step
 
-        if self.hi_lim is not None:
-            if hi_new > self.hi_lim: # limit maximum value
-                hi_new = self.hi_lim 
-                if top!=0 and bot!=0:          # moving entire region?
-                    lo_new = hi_new - span_prv # avoid collapsing the span against top limit
-        if self.lo_lim is not None:
-            if lo_new < self.lo_lim: # limit minimum value
-                lo_new = self.lo_lim 
-                if top!=0 and bot!=0:          # moving entire region?
-                    hi_new = lo_new + span_prv # avoid collapsing the span against bottom limit
+        if self.hi_lim is not None and hi_new > self.hi_lim:
+            hi_new = self.hi_lim
+            if top!=0 and bot!=0:          # moving entire region?
+                lo_new = hi_new - span_prv # avoid collapsing the span against top limit
+        if self.lo_lim is not None and lo_new < self.lo_lim:
+            lo_new = self.lo_lim
+            if top!=0 and bot!=0:          # moving entire region?
+                hi_new = lo_new + span_prv # avoid collapsing the span against bottom limit
         if hi_new-lo_new < self.rounding: # do not allow less than one "rounding" unit of span 
             if   bot == 0: hi_new = lo_new + self.rounding
             elif top == 0: lo_new = hi_new - self.rounding

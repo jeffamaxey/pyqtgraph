@@ -96,7 +96,7 @@ class ImageWindow(ImageView):
             'ImageWindow is deprecated, use ImageView instead'
             'will be removed in 0.13',
             DeprecationWarning, stacklevel=2
-        ) 
+        )
         mkQApp()
         self.win = QtWidgets.QMainWindow()
         self.win.resize(800,600)
@@ -104,9 +104,9 @@ class ImageWindow(ImageView):
             self.win.setWindowTitle(kargs['title'])
             del kargs['title']
         ImageView.__init__(self, self.win)
-        if len(args) > 0 or len(kargs) > 0:
+        if args or kargs:
             self.setImage(*args, **kargs)
-        
+
         self.win.setCentralWidget(self)
         for m in ['resize']:
             setattr(self, m, getattr(self.win, m))

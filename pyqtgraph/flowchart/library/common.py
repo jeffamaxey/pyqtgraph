@@ -26,8 +26,7 @@ def generateUi(opts):
     l.setSpacing(0)
     widget.setLayout(l)
     ctrls = {}
-    row = 0
-    for opt in opts:
+    for row, opt in enumerate(opts):
         if len(opt) == 2:
             k, t = opt
             o = {}
@@ -35,7 +34,7 @@ def generateUi(opts):
             k, t, o = opt
         else:
             raise Exception("Widget specification must be (name, type) or (name, type, {opts})")
-            
+
         ## clean out these options so they don't get sent to SpinBox
         hidden = o.pop('hidden', False)
         tip = o.pop('tip', None)
@@ -67,12 +66,10 @@ def generateUi(opts):
             w = QtWidgets.QComboBox()
             for i in o['values']:
                 w.addItem(i)
-        #elif t == 'colormap':
-            #w = ColorMapper()
         elif t == 'color':
             w = ColorButton()
         else:
-            raise Exception("Unknown widget type '%s'" % str(t))
+            raise Exception(f"Unknown widget type '{str(t)}'")
 
         if tip is not None:
             w.setToolTip(tip)
@@ -82,10 +79,9 @@ def generateUi(opts):
             w.hide()
             label = l.labelForField(w)
             label.hide()
-            
+
         ctrls[k] = w
         w.rowNum = row
-        row += 1
     group = WidgetGroup(widget)
     return widget, group, ctrls
 
@@ -99,13 +95,9 @@ class CtrlNode(Node):
         if terminals is None:
             terminals = {'In': {'io': 'in'}, 'Out': {'io': 'out', 'bypass': 'In'}}
         Node.__init__(self, name=name, terminals=terminals)
-        
+
         if ui is None:
-            if hasattr(self, 'uiTemplate'):
-                ui = self.uiTemplate
-            else:
-                ui = []
-        
+            ui = self.uiTemplate if hasattr(self, 'uiTemplate') else []
         self.ui, self.stateGroup, self.ctrls = generateUi(ui)
         self.stateGroup.sigChanged.connect(self.changed)
        

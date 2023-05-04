@@ -107,10 +107,10 @@ class PColorMeshItem(GraphicsObject):
         self.x = None
         self.y = None
         self.z = None
-        
+
         self.edgecolors = kwargs.get('edgecolors', None)
         self.antialiasing = kwargs.get('antialiasing', False)
-        
+
         if 'colorMap' in kwargs:
             cmap = kwargs.get('colorMap')
             if not isinstance(cmap, colormap.ColorMap):
@@ -126,7 +126,11 @@ class PColorMeshItem(GraphicsObject):
             )
             cmap = kwargs.get('cmap')
             if not isinstance(cmap, str) or cmap not in Gradients:
-                raise NameError('Undefined colormap, should be one of the following: '+', '.join(['"'+i+'"' for i in Gradients.keys()])+'.')
+                raise NameError(
+                    'Undefined colormap, should be one of the following: '
+                    + ', '.join([f'"{i}"' for i in Gradients.keys()])
+                    + '.'
+                )
             pos, color = zip(*Gradients[cmap]['ticks'])
             self.cmap = colormap.ColorMap(pos, color)
         else:
@@ -138,7 +142,7 @@ class PColorMeshItem(GraphicsObject):
         self.quads = QuadInstances()
 
         # If some data have been sent we directly display it
-        if len(args)>0:
+        if args:
             self.setData(*args)
 
 
@@ -287,16 +291,12 @@ class PColorMeshItem(GraphicsObject):
 
 
     def width(self):
-        if self.x is None:
-            return None
-        return np.max(self.x)
+        return None if self.x is None else np.max(self.x)
 
 
 
     def height(self):
-        if self.y is None:
-            return None
-        return np.max(self.y)
+        return None if self.y is None else np.max(self.y)
 
 
 

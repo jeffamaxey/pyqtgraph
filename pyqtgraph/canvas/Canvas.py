@@ -289,50 +289,38 @@ class Canvas(QtWidgets.QWidget):
         citem.sigTransformChangeFinished.connect(self.itemTransformChangeFinished)
         citem.sigVisibilityChanged.connect(self.itemVisibilityChanged)
 
-        
+
         ## Determine name to use in the item list
         name = citem.opts['name']
         if name is None:
             name = 'item'
         newname = name
 
-        ## If name already exists, append a number to the end
-        ## NAH. Let items have the same name if they really want.
-        #c=0
-        #while newname in self.items:
-            #c += 1
-            #newname = name + '_%03d' %c
         #name = newname
-            
+
         ## find parent and add item to tree
         insertLocation = 0
         #print "Inserting node:", name
-        
-            
+
+
         ## determine parent list item where this item should be inserted
         parent = citem.parentItem()
         if parent in (None, self.view.childGroup):
             parent = self.itemList.invisibleRootItem()
         else:
             parent = parent.listItem
-        
+
         ## set Z value above all other siblings if none was specified
         siblings = [parent.child(i).canvasItem() for i in range(parent.childCount())]
         z = citem.zValue()
         if z is None:
             zvals = [i.zValue() for i in siblings]
             if parent is self.itemList.invisibleRootItem():
-                if len(zvals) == 0:
-                    z = 0
-                else:
-                    z = max(zvals)+10
+                z = max(zvals)+10 if zvals else 0
             else:
-                if len(zvals) == 0:
-                    z = parent.canvasItem().zValue()
-                else:
-                    z = max(zvals)+1
+                z = max(zvals)+1 if zvals else parent.canvasItem().zValue()
             citem.setZValue(z)
-            
+
         ## determine location to insert item relative to its siblings
         for i in range(parent.childCount()):
             ch = parent.child(i)
@@ -342,7 +330,7 @@ class Canvas(QtWidgets.QWidget):
                 break
             else:
                 insertLocation = i+1
-                
+
         node = QtWidgets.QTreeWidgetItem([name])
         flags = node.flags() | QtCore.Qt.ItemFlag.ItemIsUserCheckable | QtCore.Qt.ItemFlag.ItemIsDragEnabled
         if not isinstance(citem, GroupCanvasItem):
@@ -352,10 +340,10 @@ class Canvas(QtWidgets.QWidget):
             node.setCheckState(0, QtCore.Qt.CheckState.Checked)
         else:
             node.setCheckState(0, QtCore.Qt.CheckState.Unchecked)
-        
+
         node.name = name
         parent.insertChild(insertLocation, node)
-        
+
         citem.name = name
         citem.listItem = node
         node.canvasItem = weakref.ref(citem)
@@ -364,14 +352,14 @@ class Canvas(QtWidgets.QWidget):
         ctrl = citem.ctrlWidget()
         ctrl.hide()
         self.ui.ctrlLayout.addWidget(ctrl)
-        
+
         ## inform the canvasItem that its parent canvas has changed
         citem.setCanvas(self)
 
         ## Autoscale to fit the first item added (not including the grid).
         if len(self.items) == 2:
             self.autoRange()
-            
+
         return citem
 
     def treeItemMoved(self, item, parent, index):
@@ -402,7 +390,7 @@ class Canvas(QtWidgets.QWidget):
     def removeItem(self, item):
         if isinstance(item, QtWidgets.QTreeWidgetItem):
             item = item.canvasItem()
-            
+
         if isinstance(item, CanvasItem):
             item.setCanvas(None)
             listItem = item.listItem
@@ -414,12 +402,11 @@ class Canvas(QtWidgets.QWidget):
             ctrl.hide()
             self.ui.ctrlLayout.removeWidget(ctrl)
             ctrl.setParent(None)
+        elif hasattr(item, '_canvasItem'):
+            self.removeItem(item._canvasItem)
         else:
-            if hasattr(item, '_canvasItem'):
-                self.removeItem(item._canvasItem)
-            else:
-                self.view.removeItem(item)
-                
+            self.view.removeItem(item)
+
         gc.collect()
         
     def clear(self):

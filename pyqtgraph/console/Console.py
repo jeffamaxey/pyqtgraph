@@ -154,10 +154,7 @@ class ConsoleWidget(QtWidgets.QWidget):
     def currentFrame(self):
         ## Return the currently selected exception stack frame (or None if there is no exception)
         index = self.ui.exceptionStackList.currentRow()
-        if index >= 0 and index < len(self.frames):
-            return self.frames[index]
-        else:
-            return None
+        return self.frames[index] if index >= 0 and index < len(self.frames) else None
         
     def execSingle(self, cmd):
         try:
@@ -256,11 +253,9 @@ class ConsoleWidget(QtWidgets.QWidget):
         Display the current exception and stack.
         """
         tb = traceback.format_exc()
-        lines = []
         indent = 4
-        prefix = '' 
-        for l in tb.split('\n'):
-            lines.append(" "*indent + prefix + l)
+        prefix = ''
+        lines = [" "*indent + prefix + l for l in tb.split('\n')]
         self.write('\n'.join(lines))
         self.exceptionHandler(*sys.exc_info())
         
@@ -339,21 +334,21 @@ class ConsoleWidget(QtWidgets.QWidget):
         
     def updateSysTrace(self):
         ## Install or uninstall  sys.settrace handler 
-        
+
         if not self.ui.catchNextExceptionBtn.isChecked() and not self.ui.catchAllExceptionsBtn.isChecked():
             if sys.gettrace() == self.systrace:
                 sys.settrace(None)
             return
-        
+
         if self.ui.onlyUncaughtCheck.isChecked():
             if sys.gettrace() == self.systrace:
                 sys.settrace(None)
+        elif sys.gettrace() is None or sys.gettrace() == self.systrace:
+            sys.settrace(self.systrace)
+
         else:
-            if sys.gettrace() is not None and sys.gettrace() != self.systrace:
-                self.ui.onlyUncaughtCheck.setChecked(False)
-                raise Exception("sys.settrace is in use; cannot monitor for caught exceptions.")
-            else:
-                sys.settrace(self.systrace)
+            self.ui.onlyUncaughtCheck.setChecked(False)
+            raise Exception("sys.settrace is in use; cannot monitor for caught exceptions.")
         
     def exceptionHandler(self, excType, exc, tb, systrace=False, frame=None):
         if frame is None:
@@ -448,10 +443,10 @@ class ConsoleWidget(QtWidgets.QWidget):
         
     def checkException(self, excType, exc, tb):
         ## Return True if the exception is interesting; False if it should be ignored.
-        
+
         filename = tb.tb_frame.f_code.co_filename
         function = tb.tb_frame.f_code.co_name
-        
+
         filterStr = str(self.ui.filterText.text())
         if filterStr != '':
             if isinstance(exc, Exception):
@@ -460,7 +455,7 @@ class ConsoleWidget(QtWidgets.QWidget):
                 msg = exc
             else:
                 msg = repr(exc)
-            match = re.search(filterStr, "%s:%s:%s" % (filename, function, msg))
+            match = re.search(filterStr, f"{filename}:{function}:{msg}")
             return match is not None
 
         ## Go through a list of common exception points we like to ignore:
@@ -486,12 +481,13 @@ class ConsoleWidget(QtWidgets.QWidget):
                 return False
             if filename.endswith('pyqtgraph/functions.py') and function == 'makeQImage':
                 return False
-        if excType is TypeError:
-            if filename.endswith('numpy/lib/function_base.py') and function == 'iterable':
-                return False
-        if excType is ZeroDivisionError:
-            if filename.endswith('python2.7/traceback.py'):
-                return False
-            
-        return True
+        if (
+            excType is TypeError
+            and filename.endswith('numpy/lib/function_base.py')
+            and function == 'iterable'
+        ):
+            return False
+        return excType is not ZeroDivisionError or not filename.endswith(
+            'python2.7/traceback.py'
+        )
     

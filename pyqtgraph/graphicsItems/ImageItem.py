@@ -208,7 +208,7 @@ class ImageItem(GraphicsObject):
 
     @staticmethod
     def _ensure_proper_substrate(data, substrate):
-        if data is None or isinstance(data, Callable) or isinstance(data, substrate.ndarray):
+        if data is None or isinstance(data, (Callable, substrate.ndarray)):
             return data
         cupy = getCupy()
         if substrate == cupy and not isinstance(data, cupy.ndarray):
@@ -309,7 +309,7 @@ class ImageItem(GraphicsObject):
         This method cannot be used before an image is assigned.
         See the :ref:`examples <ImageItem_examples>` for how to manually set transformations.
         """
-        if len(args) == 0:
+        if not args:
             self.resetTransform() # reset scaling and rotation when called without argument
             return
         if isinstance(args[0], (QtCore.QRectF, QtCore.QRect)):
@@ -401,9 +401,11 @@ class ImageItem(GraphicsObject):
             if self.image is None or image.dtype != self.image.dtype:
                 self._effectiveLut = None
             self.image = image
-            if self.image.shape[0] > 2**15-1 or self.image.shape[1] > 2**15-1:
-                if 'autoDownsample' not in kargs:
-                    kargs['autoDownsample'] = True
+            if (
+                self.image.shape[0] > 2**15 - 1
+                or self.image.shape[1] > 2**15 - 1
+            ) and 'autoDownsample' not in kargs:
+                kargs['autoDownsample'] = True
             if shapeChanged:
                 self.prepareGeometryChange()
                 self.informViewBoundsChanged()
@@ -411,10 +413,7 @@ class ImageItem(GraphicsObject):
         profile()
 
         if autoLevels is None:
-            if 'levels' in kargs:
-                autoLevels = False
-            else:
-                autoLevels = True
+            autoLevels = 'levels' not in kargs
         if autoLevels:
             level_samples = kargs.pop('levelSamples', 2**16) 
             mn, mx = self.quickMinMax( targetSize=level_samples )
@@ -492,26 +491,17 @@ class ImageItem(GraphicsObject):
         Returns (`min`, `max`).
         """
         data = self.image
-        if targetSize < 2: # keep at least two pixels
-            targetSize = 2
+        targetSize = max(targetSize, 2)
         while True:
             h, w = data.shape[:2]
             if h * w <= targetSize: break
-            if h > w:
-                data = data[::2, ::] # downsample first axis
-            else:
-                data = data[::, ::2] # downsample second axis
+            data = data[::2, ::] if h > w else data[::, ::2]
         return self._xp.nanmin(data), self._xp.nanmax(data)
 
     def updateImage(self, *args, **kargs):
-        ## used for re-rendering qimage from self.image.
-
-        ## can we make any assumptions here that speed things up?
-        ## dtype, range, size are all the same?
         defaults = {
             'autoLevels': False,
-        }
-        defaults.update(kargs)
+        } | kargs
         return self.setImage(*args, **defaults)
 
     def render(self):
@@ -1027,9 +1017,11 @@ class ImageItem(GraphicsObject):
             self.drawAt(ev.pos(), ev)
 
     def mouseClickEvent(self, ev):
-        if ev.button() == QtCore.Qt.MouseButton.RightButton:
-            if self.raiseContextMenu(ev):
-                ev.accept()
+        if (
+            ev.button() == QtCore.Qt.MouseButton.RightButton
+            and self.raiseContextMenu(ev)
+        ):
+            ev.accept()
         if self.drawKernel is not None and ev.button() == QtCore.Qt.MouseButton.LeftButton:
             self.drawAt(ev.pos(), ev)
 
@@ -1055,11 +1047,14 @@ class ImageItem(GraphicsObject):
         return self.menu
 
     def hoverEvent(self, ev):
-        if not ev.isExit() and self.drawKernel is not None and ev.acceptDrags(QtCore.Qt.MouseButton.LeftButton):
-            ev.acceptClicks(QtCore.Qt.MouseButton.LeftButton) ## we don't use the click, but we also don't want anyone else to use it.
-            ev.acceptClicks(QtCore.Qt.MouseButton.RightButton)
-        elif not ev.isExit() and self.removable:
-            ev.acceptClicks(QtCore.Qt.MouseButton.RightButton)  ## accept context menu clicks
+        if not ev.isExit():
+            if self.drawKernel is not None and ev.acceptDrags(
+                QtCore.Qt.MouseButton.LeftButton
+            ):
+                ev.acceptClicks(QtCore.Qt.MouseButton.LeftButton) ## we don't use the click, but we also don't want anyone else to use it.
+                ev.acceptClicks(QtCore.Qt.MouseButton.RightButton)
+            elif self.removable:
+                ev.acceptClicks(QtCore.Qt.MouseButton.RightButton)  ## accept context menu clicks
 
     def tabletEvent(self, ev):
         pass
@@ -1096,7 +1091,7 @@ class ImageItem(GraphicsObject):
         src = dk
 
         if isinstance(self.drawMode, Callable):
-            self.drawMode(dk, self.image, mask, ss, ts, ev)
+            self.drawMode(src, self.image, mask, ss, ts, ev)
         else:
             src = src[ss]
             if self.drawMode == 'set':
@@ -1108,7 +1103,7 @@ class ImageItem(GraphicsObject):
             elif self.drawMode == 'add':
                 self.image[ts] += src
             else:
-                raise Exception("Unknown draw mode '%s'" % self.drawMode)
+                raise Exception(f"Unknown draw mode '{self.drawMode}'")
             self.updateImage()
 
     def setDrawKernel(self, kernel=None, mask=None, center=(0,0), mode='set'):

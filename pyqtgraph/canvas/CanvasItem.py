@@ -40,22 +40,29 @@ class CanvasItem(QtCore.QObject):
     transformCopyBuffer = None
     
     def __init__(self, item, **opts):
-        defOpts = {'name': None, 'z': None, 'movable': True, 'scalable': False, 'rotatable': True, 'visible': True, 'parent':None} #'pos': [0,0], 'scale': [1,1], 'angle':0,
-        defOpts.update(opts)
+        defOpts = {
+            'name': None,
+            'z': None,
+            'movable': True,
+            'scalable': False,
+            'rotatable': True,
+            'visible': True,
+            'parent': None,
+        } | opts
         self.opts = defOpts
         self.selectedAlone = False  ## whether this item is the only one selected
-        
+
         QtCore.QObject.__init__(self)
         self.canvas = None
         self._graphicsItem = item
-        
+
         parent = self.opts['parent']
         if parent is not None:
             self._graphicsItem.setParentItem(parent.graphicsItem())
             self._parentItem = parent
         else:
             self._parentItem = None
-        
+
         z = self.opts['z']
         if z is not None:
             item.setZValue(z)
@@ -65,7 +72,7 @@ class CanvasItem(QtCore.QObject):
         self.layout.setSpacing(0)
         self.layout.setContentsMargins(0,0,0,0)
         self.ctrl.setLayout(self.layout)
-        
+
         self.alphaLabel = QtWidgets.QLabel(translate("CanvasItem", "Alpha"))
         self.alphaSlider = QtWidgets.QSlider()
         self.alphaSlider.setMaximum(1023)
@@ -76,14 +83,14 @@ class CanvasItem(QtCore.QObject):
         self.resetTransformBtn = QtWidgets.QPushButton('Reset Transform')
         self.copyBtn = QtWidgets.QPushButton('Copy')
         self.pasteBtn = QtWidgets.QPushButton('Paste')
-        
+
         self.transformWidget = QtWidgets.QWidget()
         self.transformGui = ui_template.Ui_Form()
         self.transformGui.setupUi(self.transformWidget)
         self.layout.addWidget(self.transformWidget, 3, 0, 1, 2)
         self.transformGui.mirrorImageBtn.clicked.connect(self.mirrorY)
         self.transformGui.reflectImageBtn.clicked.connect(self.mirrorXY)
-        
+
         self.layout.addWidget(self.resetTransformBtn, 1, 0, 1, 2)
         self.layout.addWidget(self.copyBtn, 2, 0, 1, 1)
         self.layout.addWidget(self.pasteBtn, 2, 1, 1, 1)
@@ -93,7 +100,7 @@ class CanvasItem(QtCore.QObject):
         self.resetTransformBtn.clicked.connect(self.resetTransformClicked)
         self.copyBtn.clicked.connect(self.copyClicked)
         self.pasteBtn.clicked.connect(self.pasteClicked)
-        
+
         self.setMovable(self.opts['movable'])  ## update gui to reflect this option
 
         if 'transform' in self.opts:
@@ -111,7 +118,7 @@ class CanvasItem(QtCore.QObject):
         tr = self.baseTransform.saveState()
         if 'scalable' not in opts and tr['scale'] == (1,1):
             self.opts['scalable'] = True
-            
+
         ## every CanvasItem implements its own individual selection box 
         ## so that subclasses are free to make their own.
         self.selectBox = SelectBox(scalable=self.opts['scalable'], rotatable=self.opts['rotatable'])
@@ -125,7 +132,7 @@ class CanvasItem(QtCore.QObject):
         self.itemRotation = QtWidgets.QGraphicsRotation()
         self.itemScale = QtWidgets.QGraphicsScale()
         self._graphicsItem.setTransformations([self.itemRotation, self.itemScale])
-        
+
         self.tempTransform = SRTTransform() ## holds the additional transform that happens during a move - gets added to the userTransform when move is done.
         self.userTransform = SRTTransform() ## stores the total transform of the object
         self.resetUserTransform() 
@@ -168,9 +175,8 @@ class CanvasItem(QtCore.QObject):
 
     def setParentItem(self, parent):
         self._parentItem = parent
-        if parent is not None:
-            if isinstance(parent, CanvasItem):
-                parent = parent.graphicsItem()
+        if parent is not None and isinstance(parent, CanvasItem):
+            parent = parent.graphicsItem()
         self.graphicsItem().setParentItem(parent)
 
     #def name(self):
@@ -481,8 +487,7 @@ class GroupCanvasItem(CanvasItem):
     """
     
     def __init__(self, **opts):
-        defOpts = {'movable': False, 'scalable': False}
-        defOpts.update(opts)
+        defOpts = {'movable': False, 'scalable': False} | opts
         item = ItemGroup()
         CanvasItem.__init__(self, item, **defOpts)
     

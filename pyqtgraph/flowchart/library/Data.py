@@ -76,10 +76,9 @@ class ColumnSelectNode(Node):
             if col not in self.columns:
                 self.columns.add(col)
                 self.addOutput(col)
-        else:
-            if col in self.columns:
-                self.columns.remove(col)
-                self.removeTerminal(col)
+        elif col in self.columns:
+            self.columns.remove(col)
+            self.removeTerminal(col)
         self.update()
         
     def saveState(self):
@@ -219,10 +218,10 @@ class EvalNode(Node):
             stripped = line.lstrip()
             if len(stripped) > 0:
                 ind.append(len(line) - len(stripped))
-        if len(ind) > 0:
+        if ind:
             ind = min(ind)
             code = '\n'.join([line[ind:] for line in lines])
-        
+
         self.text.clear()
         self.text.insertPlainText(code)
 
@@ -230,8 +229,7 @@ class EvalNode(Node):
         return self.text.toPlainText()
         
     def process(self, display=True, **args):
-        l = locals()
-        l.update(args)
+        l = locals() | args
         ## try eval first, then exec
         try:  
             text = self.text.toPlainText().replace('\n', ' ')
@@ -239,7 +237,13 @@ class EvalNode(Node):
         except SyntaxError:
             fn = "def fn(**args):\n"
             run = "\noutput=fn(**args)\n"
-            text = fn + "\n".join(["    "+l for l in self.text.toPlainText().split('\n')]) + run
+            text = (
+                fn
+                + "\n".join(
+                    [f"    {l}" for l in self.text.toPlainText().split('\n')]
+                )
+                + run
+            )
             ldict = locals()
             exec(text, globals(), ldict)
             output = ldict['output']
@@ -432,11 +436,7 @@ class Index(CtrlNode):
         s = self.stateGroup.state()
         ax = s['axis']
         ind = s['index']
-        if ax == 0:
-            # allow support for non-ndarray sequence types
-            return data[ind]
-        else:
-            return data.take(ind, axis=ax)
+        return data[ind] if ax == 0 else data.take(ind, axis=ax)
         
 
 class Slice(CtrlNode):
@@ -459,10 +459,9 @@ class Slice(CtrlNode):
         if ax == 0:
             # allow support for non-ndarray sequence types
             return data[start:stop:step]
-        else:
-            sl = [slice(None) for i in range(data.ndim)]
-            sl[ax] = slice(start, stop, step)
-            return data[sl]
+        sl = [slice(None) for _ in range(data.ndim)]
+        sl[ax] = slice(start, stop, step)
+        return data[sl]
         
 
 class AsType(CtrlNode):

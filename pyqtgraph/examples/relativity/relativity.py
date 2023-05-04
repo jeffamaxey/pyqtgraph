@@ -183,7 +183,7 @@ class RelativityGUI(QtWidgets.QWidget):
         if preset == '':
             return
         path = os.path.abspath(os.path.dirname(__file__))
-        fn = os.path.join(path, 'presets', preset+".cfg")
+        fn = os.path.join(path, 'presets', f"{preset}.cfg")
         state = configfile.readConfigFile(fn)
         self.loadState(state)
         
@@ -279,10 +279,7 @@ class AccelerationGroup(pTypes.GroupParameter):
             ]))
             
     def generate(self):
-        prog = []
-        for cmd in self:
-            prog.append((cmd['Proper Time'], cmd['Acceleration']))
-        return prog    
+        return [(cmd['Proper Time'], cmd['Acceleration']) for cmd in self]    
         
 pTypes.registerParameterType('AccelerationGroup', AccelerationGroup)
 
@@ -363,18 +360,11 @@ class Clock(object):
         
     def getCurve(self, ref=True):
         
-        if ref is False:
-            data = self.inertData
-        else:
-            data = self.refData[1:]
-            
+        data = self.inertData if ref is False else self.refData[1:]
         x = data['x']
         y = data['t']
-        
+
         curve = pg.PlotCurveItem(x=x, y=y, pen=self.pen)
-            #x = self.data['x'] - ref.data['x']
-            #y = self.data['t']
-        
         step = 1.0
         #mod = self.data['pt'] % step
         #inds = np.argwhere(abs(mod[1:] - mod[:-1]) > step*0.9)
@@ -385,7 +375,7 @@ class Clock(object):
             if abs(diff) >= step:
                 inds.append(i)
         inds = np.array(inds)
-        
+
         #t = self.data['t'][inds]
         #x = self.data['x'][inds]   
         pts = []
@@ -397,15 +387,12 @@ class Clock(object):
                 dt = data['t'][i+1]-data['t'][i]
             else:
                 dpt = 1
-                
-            if dpt > 0:
-                c = pg.mkBrush((0,0,0))
-            else:
-                c = pg.mkBrush((200,200,200))
+
+            c = pg.mkBrush((0,0,0)) if dpt > 0 else pg.mkBrush((200,200,200))
             pts.append({'pos': (x, y), 'brush': c})
-            
+
         points = pg.ScatterPlotItem(pts, pen=self.pen, size=7)
-        
+
         return curve, points
 
 
@@ -474,37 +461,57 @@ class Simulation:
         ## and another clock starts at x0, t0, and v0, with acceleration g,
         ## compute the intersection time of the object clock's hyperbolic path with 
         ## the reference plane.
-        
+
         ## I'm sure we can simplify this...
-        
+
         if g == 0:   ## no acceleration, path is linear (and hyperbola is undefined)
-            #(-t0r + t0 v0 vr - vr x0 + vr x0r)/(-1 + v0 vr)
-            
-            t = (-t0r + t0 *v0 *vr - vr *x0 + vr *x0r)/(-1 + v0 *vr)
-            return t
-        
+            return (-t0r + t0 *v0 *vr - vr *x0 + vr *x0r)/(-1 + v0 *vr)
         gamma = (1.0-v0**2)**-0.5
         sel = (1 if g>0 else 0) + (1 if vr<0 else 0)
         sel = sel%2
-        if sel == 0:
-            #(1/(g^2 (-1 + vr^2)))(-g^2 t0r + g gamma vr + g^2 t0 vr^2 - 
-            #g gamma v0 vr^2 - g^2 vr x0 + 
-            #g^2 vr x0r + \[Sqrt](g^2 vr^2 (1 + gamma^2 (v0 - vr)^2 - vr^2 + 
-            #2 g gamma (v0 - vr) (-t0 + t0r + vr (x0 - x0r)) + 
-            #g^2 (t0 - t0r + vr (-x0 + x0r))^2)))
-            
-            t = (1./(g**2 *(-1. + vr**2)))*(-g**2 *t0r + g *gamma *vr + g**2 *t0 *vr**2 - g *gamma *v0 *vr**2 - g**2 *vr *x0 + g**2 *vr *x0r + np.sqrt(g**2 *vr**2 *(1. + gamma**2 *(v0 - vr)**2 - vr**2 + 2 *g *gamma *(v0 - vr)* (-t0 + t0r + vr *(x0 - x0r)) + g**2 *(t0 - t0r + vr* (-x0 + x0r))**2)))
-            
-        else:
-            
-            #-(1/(g^2 (-1 + vr^2)))(g^2 t0r - g gamma vr - g^2 t0 vr^2 + 
-            #g gamma v0 vr^2 + g^2 vr x0 - 
-            #g^2 vr x0r + \[Sqrt](g^2 vr^2 (1 + gamma^2 (v0 - vr)^2 - vr^2 + 
-            #2 g gamma (v0 - vr) (-t0 + t0r + vr (x0 - x0r)) + 
-            #g^2 (t0 - t0r + vr (-x0 + x0r))^2)))
-        
-            t = -(1./(g**2 *(-1. + vr**2)))*(g**2 *t0r - g *gamma* vr - g**2 *t0 *vr**2 + g *gamma *v0 *vr**2 + g**2* vr* x0 - g**2 *vr *x0r + np.sqrt(g**2* vr**2 *(1. + gamma**2 *(v0 - vr)**2 - vr**2 + 2 *g *gamma *(v0 - vr) *(-t0 + t0r + vr *(x0 - x0r)) + g**2 *(t0 - t0r + vr *(-x0 + x0r))**2)))
-        return t
+        return (
+            (1.0 / (g**2 * (-1.0 + vr**2)))
+            * (
+                -(g**2) * t0r
+                + g * gamma * vr
+                + g**2 * t0 * vr**2
+                - g * gamma * v0 * vr**2
+                - g**2 * vr * x0
+                + g**2 * vr * x0r
+                + np.sqrt(
+                    g**2
+                    * vr**2
+                    * (
+                        1.0
+                        + gamma**2 * (v0 - vr) ** 2
+                        - vr**2
+                        + 2 * g * gamma * (v0 - vr) * (-t0 + t0r + vr * (x0 - x0r))
+                        + g**2 * (t0 - t0r + vr * (-x0 + x0r)) ** 2
+                    )
+                )
+            )
+            if sel == 0
+            else -(1.0 / (g**2 * (-1.0 + vr**2)))
+            * (
+                g**2 * t0r
+                - g * gamma * vr
+                - g**2 * t0 * vr**2
+                + g * gamma * v0 * vr**2
+                + g**2 * vr * x0
+                - g**2 * vr * x0r
+                + np.sqrt(
+                    g**2
+                    * vr**2
+                    * (
+                        1.0
+                        + gamma**2 * (v0 - vr) ** 2
+                        - vr**2
+                        + 2 * g * gamma * (v0 - vr) * (-t0 + t0r + vr * (x0 - x0r))
+                        + g**2 * (t0 - t0r + vr * (-x0 + x0r)) ** 2
+                    )
+                )
+            )
+        )
         
     def run(self):
         nPts = int(self.duration/self.dt)+1

@@ -29,18 +29,16 @@ class ArrowItem(QtWidgets.QGraphicsPathItem):
 
         defaultOpts = {
             'pxMode': True,
-            'angle': -150,   ## If the angle is 0, the arrow points left
+            'angle': -150,  ## If the angle is 0, the arrow points left
             'headLen': 20,
             'headWidth': None,
             'tipAngle': 25,
             'baseAngle': 0,
             'tailLen': None,
             'tailWidth': 3,
-            'pen': (200,200,200),
-            'brush': (50,50,200),
-        }
-        defaultOpts.update(opts)
-        
+            'pen': (200, 200, 200),
+            'brush': (50, 50, 200),
+        } | opts
         self.setStyle(**defaultOpts)
 
         # for backward compatibility
@@ -81,24 +79,24 @@ class ArrowItem(QtWidgets.QGraphicsPathItem):
         needUpdate = False
         for k,v in opts.items():
             if k not in allowedOpts:
-                raise KeyError('Invalid arrow style option "%s"' % k)
+                raise KeyError(f'Invalid arrow style option "{k}"')
             if self.opts.get(k) != v:
                 needUpdate = True
             self.opts[k] = v
 
         if not needUpdate:
             return
-        
+
         opt = dict([(k,self.opts[k]) for k in arrowOpts if k in self.opts])
         tr = QtGui.QTransform()
         tr.rotate(self.opts['angle'])
         self.path = tr.map(fn.makeArrowPath(**opt))
 
         self.setPath(self.path)
-        
+
         self.setPen(fn.mkPen(self.opts['pen']))
         self.setBrush(fn.mkBrush(self.opts['brush']))
-        
+
         if self.opts['pxMode']:
             self.setFlags(self.flags() | self.GraphicsItemFlag.ItemIgnoresTransformations)
         else:
@@ -120,18 +118,16 @@ class ArrowItem(QtWidgets.QGraphicsPathItem):
     ## dataBounds and pixelPadding methods are provided to ensure ViewBox can
     ## properly auto-range 
     def dataBounds(self, ax, frac, orthoRange=None):
-        pw = 0
         pen = self.pen()
-        if not pen.isCosmetic():
-            pw = pen.width() * 0.7072
+        pw = 0 if pen.isCosmetic() else pen.width() * 0.7072
         if self.opts['pxMode']:
             return [0,0]
-        else:
-            br = self.boundingRect()
-            if ax == 0:
-                return [br.left()-pw, br.right()+pw]
-            else:
-                return [br.top()-pw, br.bottom()+pw]
+        br = self.boundingRect()
+        return (
+            [br.left() - pw, br.right() + pw]
+            if ax == 0
+            else [br.top() - pw, br.bottom() + pw]
+        )
         
     def pixelPadding(self):
         pad = 0

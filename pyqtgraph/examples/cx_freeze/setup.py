@@ -15,27 +15,20 @@ excludes = ['cvxopt','_gtkagg', '_tkagg', 'bsddb', 'curses', 'email', 'pywin.deb
     'pywin.debugger.dbgcon', 'pywin.dialogs', 'tcl','tables',
     'Tkconstants', 'Tkinter', 'zmq','PySide','pysideuic','scipy','matplotlib']
 
-# Workaround for making sure the templates are included in the frozen app package
-include_files = []
 import pyqtgraph
 
 pg_folder = Path(pyqtgraph.__file__).parent
 templates = pg_folder.rglob('*template*.py')
 sources = [str(w) for w in templates]
 destinations = ['lib' + w.replace(str(pg_folder.parent), '') for w in sources]
-for a in zip(sources, destinations):
-    include_files.append(a)
-
+include_files = list(zip(sources, destinations))
 print(include_files)
 
 if sys.version[0] == '2':
     # causes syntax error on py2
     excludes.append('PyQt4.uic.port_v3')
 
-base = None
-if sys.platform == "win32":
-    base = "Win32GUI"
-
+base = "Win32GUI" if sys.platform == "win32" else None
 build_exe_options = {'excludes': excludes,
     'includes':includes, 'include_msvcr':True,
     'optimize':1, "include_files": include_files,}

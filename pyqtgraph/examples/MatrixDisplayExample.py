@@ -26,10 +26,10 @@ class MainWindow(QtWidgets.QMainWindow):
         columns = ["A", "B", "C"]
 
         pg.setConfigOption('imageAxisOrder', 'row-major') # Switch default order to Row-major
-        
+
         correlogram = pg.ImageItem()
         # create transform to center the corner element on the origin, for any assigned image:
-        tr = QtGui.QTransform().translate(-0.5, -0.5) 
+        tr = QtGui.QTransform().translate(-0.5, -0.5)
         correlogram.setTransform(tr)
         correlogram.setImage(corrMatrix)
 
@@ -37,12 +37,12 @@ class MainWindow(QtWidgets.QMainWindow):
         plotItem.invertY(True)           # orient y axis to run top-to-bottom
         plotItem.setDefaultPadding(0.0)  # plot without padding data range
         plotItem.addItem(correlogram)    # display correlogram
-        
+
         # show full frame, label tick marks at top and left sides, with some extra space for labels:
         plotItem.showAxes( True, showValues=(True, True, False, False), size=20 )
 
         # define major tick marks and labels:
-        ticks = [ (idx, label) for idx, label in enumerate( columns ) ]
+        ticks = list(enumerate( columns ))
         for side in ('left','top','right','bottom'):
             plotItem.getAxis(side).setTicks( (ticks, []) ) # add list of major ticks; no minor ticks
         plotItem.getAxis('bottom').setHeight(10) # include some additional space at bottom of figure

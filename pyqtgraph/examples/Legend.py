@@ -2,6 +2,7 @@
 Demonstrates basic use of LegendItem
 """
 
+
 import numpy as np
 
 import pyqtgraph as pg
@@ -19,7 +20,14 @@ bg1 = pg.BarGraphItem(x=x, height=y, width=0.3, brush='b', pen='w', name='bar')
 win.addItem(bg1)
 
 # curve
-c1 = win.plot([np.random.randint(0,8) for i in range(10)], pen='r', symbol='t', symbolPen='r', symbolBrush='g', name='curve1')
+c1 = win.plot(
+    [np.random.randint(0, 8) for _ in range(10)],
+    pen='r',
+    symbol='t',
+    symbolPen='r',
+    symbolBrush='g',
+    name='curve1',
+)
 c2 = win.plot([2,1,4,3,1,3,2,4,3,2], pen='g', fillLevel=0, fillBrush=(255,255,255,30), name='curve2')
 
 # scatter plot

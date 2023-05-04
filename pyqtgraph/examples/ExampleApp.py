@@ -268,10 +268,7 @@ class PythonHighlighter(QSyntaxHighlighter):
         self.applySearchHighlight(text)
 
         # Return True if still inside a multi-line string, False otherwise
-        if self.currentBlockState() == in_state:
-            return True
-        else:
-            return False
+        return self.currentBlockState() == in_state
 
     def applySearchHighlight(self, text):
         if not self.searchText:
@@ -293,7 +290,7 @@ def unnestedDict(exDict):
     out = {}
     for kk, vv in exDict.items():
         if isinstance(vv, dict):
-            out.update(unnestedDict(vv))
+            out |= unnestedDict(vv)
         else:
             out[kk] = vv
     return out
@@ -410,11 +407,10 @@ class ExampleLoader(QtWidgets.QMainWindow):
 
             # If all children of a parent are gone, hide it
             if parent:
-                hideParent = True
-                for ii in range(parent.childCount()):
-                    if not parent.child(ii).isHidden():
-                        hideParent = False
-                        break
+                hideParent = all(
+                    parent.child(ii).isHidden()
+                    for ii in range(parent.childCount())
+                )
                 parent.setHidden(hideParent)
 
             treeIter += 1
@@ -464,9 +460,7 @@ class ExampleLoader(QtWidgets.QMainWindow):
 
     def currentFile(self):
         item = self.ui.exampleTree.currentItem()
-        if hasattr(item, 'file'):
-            return os.path.join(path, item.file)
-        return None
+        return os.path.join(path, item.file) if hasattr(item, 'file') else None
 
     def loadFile(self, edited=False):
 
@@ -532,9 +526,9 @@ class ExampleLoader(QtWidgets.QMainWindow):
             return ret
         font = self.ui.codeView.font()
         oldSize = font.pointSize()
-        if key == Key.Key_Plus or key == Key.Key_Equal:
+        if key in [Key.Key_Plus, Key.Key_Equal]:
             font.setPointSize(oldSize + max(oldSize*.15, 1))
-        elif key == Key.Key_Minus or key == Key.Key_Underscore:
+        elif key in [Key.Key_Minus, Key.Key_Underscore]:
             newSize = oldSize - max(oldSize*.15, 1)
             font.setPointSize(max(newSize, 1))
         elif key == Key.Key_0:

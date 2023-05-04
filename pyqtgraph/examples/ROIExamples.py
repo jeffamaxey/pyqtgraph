@@ -4,6 +4,7 @@ region of interest marker. It is possible to customize the layout and
 function of the scale/rotate handles in very flexible ways. 
 """
 
+
 import numpy as np
 
 import pyqtgraph as pg
@@ -51,8 +52,7 @@ v1b.disableAutoRange('xy')
 v1a.autoRange()
 v1b.autoRange()
 
-rois = []
-rois.append(pg.RectROI([20, 20], [20, 20], pen=(0,9)))
+rois = [pg.RectROI([20, 20], [20, 20], pen=(0,9))]
 rois[-1].addRotateHandle([1,0], [0.5, 0.5])
 rois.append(pg.LineROI([0, 60], [20, 80], width=5, pen=(1,9)))
 rois.append(pg.TriangleROI([80, 75], 20, pen=(5, 9)))

@@ -74,28 +74,28 @@ class Install(install.install):
     """
     def run(self):
         global path, version, initVersion, forcedVersion, installVersion
-        
+
         name = self.config_vars['dist_name']
         path = os.path.join(self.install_libbase, 'pyqtgraph')
         if os.path.exists(path):
             raise Exception("It appears another version of %s is already "
                             "installed at %s; remove this before installing." 
                             % (name, path))
-        print("Installing to %s" % path)
+        print(f"Installing to {path}")
         rval = install.install.run(self)
 
-        
+
         # If the version in __init__ is different from the automatically-generated
         # version string, then we will update __init__ in the install directory
         if initVersion == version:
             return rval
-        
+
         try:
             initfile = os.path.join(path, '__init__.py')
             with open(initfile, "r") as file_:
                 data = file_.read()
             with open(initfile, "w") as file_:
-                file_.write(re.sub(r"__version__ = .*", "__version__ = '%s'" % version, data))
+                file_.write(re.sub(r"__version__ = .*", f"__version__ = '{version}'", data))
             installVersion = version
         except:
             sys.stderr.write("Warning: Error occurred while setting version string in build path. "
@@ -106,7 +106,7 @@ class Install(install.install):
                 raise
             installVersion = initVersion
             sys.excepthook(*sys.exc_info())
-    
+
         return rval
 
 setup(

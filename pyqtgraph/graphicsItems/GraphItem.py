@@ -91,7 +91,7 @@ class GraphItem(GraphicsObject):
             :func:`mkPen <pyqtgraph.mkPen>`.
           * 'default' to use the default foreground color.
         """
-        if len(args) == 1 and len(kwargs) == 0:
+        if len(args) == 1 and not kwargs:
             self.pen = args[0]
         else:
             self.pen = fn.mkPen(*args, **kwargs)

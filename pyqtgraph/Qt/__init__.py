@@ -115,7 +115,7 @@ def _loadUiType(uiFile):
 
     # convert ui file to python code
     if pyside2uic is None:
-        uic_executable = QT_LIB.lower() + '-uic'
+        uic_executable = f'{QT_LIB.lower()}-uic'
         uipy = subprocess.check_output([uic_executable, uiFile])
     else:
         o = _StringIO()
@@ -129,8 +129,8 @@ def _loadUiType(uiFile):
     exec(pyc, frame)
 
     # fetch the base_class and form class based on their type in the xml from designer
-    form_class = frame['Ui_%s'%form_class]
-    base_class = eval('QtWidgets.%s'%widget_class)
+    form_class = frame[f'Ui_{form_class}']
+    base_class = eval(f'QtWidgets.{widget_class}')
 
     return form_class, base_class
 
@@ -175,7 +175,7 @@ if QT_LIB == PYQT5:
     except ImportError as err:
         QtTest = FailedImport(err)
 
-    VERSION_INFO = 'PyQt5 ' + QtCore.PYQT_VERSION_STR + ' Qt ' + QtCore.QT_VERSION_STR
+    VERSION_INFO = f'PyQt5 {QtCore.PYQT_VERSION_STR} Qt {QtCore.QT_VERSION_STR}'
 
 elif QT_LIB == PYQT6:
     import PyQt6.QtCore
@@ -200,7 +200,7 @@ elif QT_LIB == PYQT6:
     except ImportError as err:
         QtTest = FailedImport(err)
 
-    VERSION_INFO = 'PyQt6 ' + QtCore.PYQT_VERSION_STR + ' Qt ' + QtCore.QT_VERSION_STR
+    VERSION_INFO = f'PyQt6 {QtCore.PYQT_VERSION_STR} Qt {QtCore.QT_VERSION_STR}'
 
 elif QT_LIB == PYSIDE2:
     import PySide2.QtCore
@@ -209,7 +209,7 @@ elif QT_LIB == PYSIDE2:
     _copy_attrs(PySide2.QtCore, QtCore)
     _copy_attrs(PySide2.QtGui, QtGui)
     _copy_attrs(PySide2.QtWidgets, QtWidgets)
-    
+
     try:
         from PySide2 import QtSvg
     except ImportError as err:
@@ -221,7 +221,7 @@ elif QT_LIB == PYSIDE2:
 
     import PySide2
     import shiboken2 as shiboken
-    VERSION_INFO = 'PySide2 ' + PySide2.__version__ + ' Qt ' + QtCore.__version__
+    VERSION_INFO = f'PySide2 {PySide2.__version__} Qt {QtCore.__version__}'
 elif QT_LIB == PYSIDE6:
     import PySide6.QtCore
     import PySide6.QtGui
@@ -245,10 +245,10 @@ elif QT_LIB == PYSIDE6:
 
     import PySide6
     import shiboken6 as shiboken
-    VERSION_INFO = 'PySide6 ' + PySide6.__version__ + ' Qt ' + QtCore.__version__
+    VERSION_INFO = f'PySide6 {PySide6.__version__} Qt {QtCore.__version__}'
 
 else:
-    raise ValueError("Invalid Qt lib '%s'" % QT_LIB)
+    raise ValueError(f"Invalid Qt lib '{QT_LIB}'")
 
 
 # common to PyQt5, PyQt6, PySide2 and PySide6
@@ -343,12 +343,10 @@ if QT_LIB in [PYQT5, PYQT6, PYSIDE2, PYSIDE6]:
     QtWidgets.QApplication.setGraphicsSystem = None
 
 
-if QT_LIB in [PYQT6, PYSIDE6]:
-    # We're using Qt6 which has a different structure so we're going to use a shim to
-    # recreate the Qt5 structure
-
-    if not isinstance(QtOpenGLWidgets, FailedImport):
-        QtWidgets.QOpenGLWidget = QtOpenGLWidgets.QOpenGLWidget
+if QT_LIB in [PYQT6, PYSIDE6] and not isinstance(
+    QtOpenGLWidgets, FailedImport
+):
+    QtWidgets.QOpenGLWidget = QtOpenGLWidgets.QOpenGLWidget
 
 
 # Common to PySide2 and PySide6

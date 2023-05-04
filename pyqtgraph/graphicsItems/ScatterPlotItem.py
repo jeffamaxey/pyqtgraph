@@ -208,9 +208,11 @@ class SymbolAtlas(object):
         corresponding symbols within the atlas. Note that these coordinates may change if the atlas is rebuilt.
         """
         keys = self._keys(styles)
-        new = {key: style for key, style in zip(keys, styles) if key not in self._coords}
-
-        if new:
+        if new := {
+            key: style
+            for key, style in zip(keys, styles)
+            if key not in self._coords
+        }:
             self._extend(new)
 
         return list(map(self._coords.__getitem__, keys))
@@ -306,8 +308,6 @@ class SymbolAtlas(object):
         self._pixmap = None
 
     def _pack(self, data):
-        # pack each item rectangle as efficiently as possible into a larger, expanding, approximate square
-        n = len(self)
         wMax = self._maxWidth
         wSum = self._totalWidth
         aSum = self._totalArea
@@ -320,8 +320,7 @@ class SymbolAtlas(object):
             wMax = max(w, wMax)
             wSum += w
             aSum += w * h
-        n += len(data)
-
+        n = len(self) + len(data)
         # maybe expand row width for squareness and to accommodate largest width
         wRowEst = int(wSum / (n ** 0.5))
         if wRowEst > 2 * wRow:
@@ -355,11 +354,9 @@ class SymbolAtlas(object):
     def _createPixmap(self):
         profiler = debug.Profiler()
         if self._data.size == 0:
-            pm = QtGui.QPixmap(0, 0)
-        else:
-            img = fn.makeQImage(self._data, copy=False, transpose=False)
-            pm = QtGui.QPixmap(img)
-        return pm
+            return QtGui.QPixmap(0, 0)
+        img = fn.makeQImage(self._data, copy=False, transpose=False)
+        return QtGui.QPixmap(img)
 
 
 class ScatterPlotItem(GraphicsObject):
@@ -433,10 +430,10 @@ class ScatterPlotItem(GraphicsObject):
             'brush': fn.mkBrush(100, 100, 150),
             'hoverable': False,
             'tip': 'x: {x:.3g}\ny: {y:.3g}\ndata={data}'.format,
+        } | {
+            f'hover{opt.title()}': _DEFAULT_STYLE[opt]
+            for opt in ['symbol', 'size', 'pen', 'brush']
         }
-        self.opts.update(
-            {'hover' + opt.title(): _DEFAULT_STYLE[opt] for opt in ['symbol', 'size', 'pen', 'brush']}
-        )
         profiler()
         self.setData(*args, **kargs)
         profiler('setData')
@@ -555,9 +552,6 @@ class ScatterPlotItem(GraphicsObject):
         ## note that np.empty initializes object fields to None and string fields to ''
 
         self.data[:len(oldData)] = oldData
-        #for i in range(len(oldData)):
-            #oldData[i]['item']._data = self.data[i]  ## Make sure items have proper reference to new array
-
         newData = self.data[len(oldData):]
         newData['size'] = -1  ## indicates to use default size
         newData['visible'] = True
@@ -582,7 +576,7 @@ class ScatterPlotItem(GraphicsObject):
                     elif k in ['x', 'y', 'size', 'symbol', 'data']:
                         newData[i][k] = spot[k]
                     else:
-                        raise Exception("Unknown spot parameter: %s" % k)
+                        raise Exception(f"Unknown spot parameter: {k}")
         elif 'y' in kargs:
             newData['x'] = kargs['x']
             newData['y'] = kargs['y']
@@ -601,9 +595,9 @@ class ScatterPlotItem(GraphicsObject):
         ## Set any extra parameters provided in keyword arguments
         for k in ['pen', 'brush', 'symbol', 'size']:
             if k in kargs:
-                setMethod = getattr(self, 'set' + k[0].upper() + k[1:])
+                setMethod = getattr(self, f'set{k[0].upper()}{k[1:]}')
                 setMethod(kargs[k], update=False, dataSet=newData, mask=kargs.get('mask', None))
-            kh = 'hover' + k.title()
+            kh = f'hover{k.title()}'
             if kh in kargs:
                 vh = kargs[kh]
                 if k == 'pen':
@@ -639,9 +633,7 @@ class ScatterPlotItem(GraphicsObject):
 
     def implements(self, interface=None):
         ints = ['plotData']
-        if interface is None:
-            return ints
-        return interface in ints
+        return ints if interface is None else interface in ints
 
     def name(self):
         return self.opts.get('name', None)
@@ -654,7 +646,7 @@ class ScatterPlotItem(GraphicsObject):
         update = kargs.pop('update', True)
         dataSet = kargs.pop('dataSet', self.data)
 
-        if len(args) == 1 and (isinstance(args[0], np.ndarray) or isinstance(args[0], list)):
+        if len(args) == 1 and (isinstance(args[0], (np.ndarray, list))):
             pens = args[0]
             if 'mask' in kargs and kargs['mask'] is not None:
                 pens = pens[kargs['mask']]
@@ -676,7 +668,7 @@ class ScatterPlotItem(GraphicsObject):
         update = kargs.pop('update', True)
         dataSet = kargs.pop('dataSet', self.data)
 
-        if len(args) == 1 and (isinstance(args[0], np.ndarray) or isinstance(args[0], list)):
+        if len(args) == 1 and (isinstance(args[0], (np.ndarray, list))):
             brushes = args[0]
             if 'mask' in kargs and kargs['mask'] is not None:
                 brushes = brushes[kargs['mask']]
@@ -721,7 +713,7 @@ class ScatterPlotItem(GraphicsObject):
         if dataSet is None:
             dataSet = self.data
 
-        if isinstance(symbol, np.ndarray) or isinstance(symbol, list):
+        if isinstance(symbol, (np.ndarray, list)):
             symbols = symbol
             if mask is not None:
                 symbols = symbols[mask]
@@ -744,7 +736,7 @@ class ScatterPlotItem(GraphicsObject):
         if dataSet is None:
             dataSet = self.data
 
-        if isinstance(size, np.ndarray) or isinstance(size, list):
+        if isinstance(size, (np.ndarray, list)):
             sizes = size
             if mask is not None:
                 sizes = sizes[mask]
@@ -767,7 +759,7 @@ class ScatterPlotItem(GraphicsObject):
         if dataSet is None:
             dataSet = self.data
 
-        if isinstance(visible, np.ndarray) or isinstance(visible, list):
+        if isinstance(visible, (np.ndarray, list)):
             visibilities = visible
             if mask is not None:
                 visibilities = visibilities[mask]
@@ -785,7 +777,7 @@ class ScatterPlotItem(GraphicsObject):
         if dataSet is None:
             dataSet = self.data
 
-        if isinstance(data, np.ndarray) or isinstance(data, list):
+        if isinstance(data, (np.ndarray, list)):
             if mask is not None:
                 data = data[mask]
             if len(data) != len(dataSet):
@@ -853,7 +845,7 @@ class ScatterPlotItem(GraphicsObject):
                 col = col.copy()
 
             if self.opts['hoverable']:
-                val = self.opts['hover' + opt.title()]
+                val = self.opts[f'hover{opt.title()}']
                 if val != _DEFAULT_STYLE[opt]:
                     col[data['hovered'][idx]] = val
 
@@ -878,15 +870,13 @@ class ScatterPlotItem(GraphicsObject):
         """Generate pairs (width, pxWidth) for spots in data"""
         styles = zip(*self._style(['size', 'pen'], **kwargs))
 
-        if self.opts['pxMode']:
-            for size, pen in styles:
+        for size, pen in styles:
+            if self.opts['pxMode']:
                 yield 0, size + pen.widthF()
-        else:
-            for size, pen in styles:
-                if pen.isCosmetic():
-                    yield size, pen.widthF()
-                else:
-                    yield size + pen.widthF(), 0
+            elif pen.isCosmetic():
+                yield size, pen.widthF()
+            else:
+                yield size + pen.widthF(), 0
 
     def getSpotOpts(self, recs, scale=1.0):
         warnings.warn(
@@ -978,7 +968,7 @@ class ScatterPlotItem(GraphicsObject):
             self.bounds[ax] = (np.nanmin(d) - self._maxSpotWidth*0.7072, np.nanmax(d) + self._maxSpotWidth*0.7072)
             return self.bounds[ax]
         elif frac <= 0.0:
-            raise Exception("Value for parameter 'frac' must be > 0. (got %s)" % str(frac))
+            raise Exception(f"Value for parameter 'frac' must be > 0. (got {str(frac)})")
         else:
             mask = np.isfinite(d)
             d = d[mask]
@@ -1038,9 +1028,7 @@ class ScatterPlotItem(GraphicsObject):
 
         pts = fn.transformCoordinates(tr, pts)
         pts -= self.data['sourceRect']['w'] / 2
-        pts = np.clip(pts, -2**30, 2**30) ## prevent Qt segmentation fault.
-
-        return pts
+        return np.clip(pts, -2**30, 2**30)
 
     def getViewMask(self, pts):
         warnings.warn(
@@ -1203,41 +1191,44 @@ class ScatterPlotItem(GraphicsObject):
             ev.ignore()
 
     def hoverEvent(self, ev):
-        if self.opts['hoverable']:
-            old = self.data['hovered']
+        if not self.opts['hoverable']:
+            return
+        old = self.data['hovered']
 
-            if ev.exit:
-                new = np.zeros_like(self.data['hovered'])
-            else:
-                new = self._maskAt(ev.pos())
+        if ev.exit:
+            new = np.zeros_like(self.data['hovered'])
+        else:
+            new = self._maskAt(ev.pos())
 
-            if self._hasHoverStyle():
-                self.data['sourceRect'][old ^ new] = 0
-                self.data['hovered'] = new
-                self.updateSpots()
+        if self._hasHoverStyle():
+            self.data['sourceRect'][old ^ new] = 0
+            self.data['hovered'] = new
+            self.updateSpots()
 
-            points = self.points()[new][::-1]
+        points = self.points()[new][::-1]
 
-            # Show information about hovered points in a tool tip
-            vb = self.getViewBox()
-            if vb is not None and self.opts['tip'] is not None:
-                if len(points) > 0:
-                    cutoff = 3
-                    tip = [self.opts['tip'](x=pt.pos().x(), y=pt.pos().y(), data=pt.data())
-                           for pt in points[:cutoff]]
-                    if len(points) > cutoff:
-                        tip.append('({} others...)'.format(len(points) - cutoff))
-                    vb.setToolTip('\n\n'.join(tip))
-                    self._toolTipCleared = False
-                elif not self._toolTipCleared:
-                    vb.setToolTip("")
-                    self._toolTipCleared = True
+        # Show information about hovered points in a tool tip
+        vb = self.getViewBox()
+        if vb is not None and self.opts['tip'] is not None:
+            if len(points) > 0:
+                cutoff = 3
+                tip = [self.opts['tip'](x=pt.pos().x(), y=pt.pos().y(), data=pt.data())
+                       for pt in points[:cutoff]]
+                if len(points) > cutoff:
+                    tip.append(f'({len(points) - cutoff} others...)')
+                vb.setToolTip('\n\n'.join(tip))
+                self._toolTipCleared = False
+            elif not self._toolTipCleared:
+                vb.setToolTip("")
+                self._toolTipCleared = True
 
-            self.sigHovered.emit(self, points, ev)
+        self.sigHovered.emit(self, points, ev)
 
     def _hasHoverStyle(self):
-        return any(self.opts['hover' + opt.title()] != _DEFAULT_STYLE[opt]
-                   for opt in ['symbol', 'size', 'pen', 'brush'])
+        return any(
+            self.opts[f'hover{opt.title()}'] != _DEFAULT_STYLE[opt]
+            for opt in ['symbol', 'size', 'pen', 'brush']
+        )
 
 
 class SpotItem(object):

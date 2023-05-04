@@ -55,7 +55,9 @@ class GraphicsItem(object):
                     self.__class__._qtBaseClass = b
                     break
         if not hasattr(self, '_qtBaseClass'):
-            raise Exception('Could not determine Qt base class for GraphicsItem: %s' % str(self))
+            raise Exception(
+                f'Could not determine Qt base class for GraphicsItem: {str(self)}'
+            )
 
         self._pixelVectorCache = [None, None]
         self._viewWidget = None
@@ -85,12 +87,9 @@ class GraphicsItem(object):
             if len(views) < 1:
                 return None
             self._viewWidget = weakref.ref(self.scene().views()[0])
-            
+
         v = self._viewWidget()
-        if v is not None and not isQObjectAlive(v):
-            return None
-            
-        return v
+        return None if v is not None and not isQObjectAlive(v) else v
     
     def forgetViewWidget(self):
         self._viewWidget = None
@@ -113,9 +112,8 @@ class GraphicsItem(object):
                     vb = self.getViewWidget()
                     if vb is None:
                         return None
-                    else:
-                        self._viewBox = weakref.ref(vb)
-                        break
+                    self._viewBox = weakref.ref(vb)
+                    break
                 if hasattr(p, 'implements') and p.implements('ViewBox'):
                     self._viewBox = weakref.ref(p)
                     break
@@ -135,14 +133,11 @@ class GraphicsItem(object):
                 return None
             viewportTransform = view.viewportTransform()
         dt = self._qtBaseClass.deviceTransform(self, viewportTransform)
-        
+
         #xmag = abs(dt.m11())+abs(dt.m12())
         #ymag = abs(dt.m21())+abs(dt.m22())
-        #if xmag * ymag == 0: 
-        if dt.determinant() == 0:  ## occurs when deviceTransform is invalid because widget has not been displayed
-            return None
-        else:
-            return dt
+        #if xmag * ymag == 0:
+        return None if dt.determinant() == 0 else dt
         
     def viewTransform(self):
         """Return the transform that maps from local coordinates to the item's ViewBox coordinates
@@ -207,15 +202,15 @@ class GraphicsItem(object):
         
         ## This is an expensive function that gets called very frequently.
         ## We have two levels of cache to try speeding things up.
-        
+
         dt = self.deviceTransform()
         if dt is None:
             return None, None
-            
+
         ## Ignore translation. If the translation is much larger than the scale
         ## (such as when looking at unix timestamps), we can get floating-point errors.
         dt.setMatrix(dt.m11(), dt.m12(), 0, dt.m21(), dt.m22(), 0, 0, 0, 1)
-        
+
         if direction is None:
             direction = QtCore.QPointF(1, 0)
         elif direction.manhattanLength() == 0:
@@ -232,35 +227,10 @@ class GraphicsItem(object):
         if pv is not None:
             self._pixelVectorCache = [key, pv]
             return tuple(map(Point,pv))  ## return a *copy*
-        
-        ## attempt to re-scale direction vector to fit within the precision of the coordinate system
-        ## Here's the problem: we need to map the vector 'direction' from the item to the device, via transform 'dt'.
-        ## In some extreme cases, this mapping can fail unless the length of 'direction' is cleverly chosen.
-        ## Example:
-        ##   dt = [ 1, 0,    2 
-        ##          0, 2, 1e20
-        ##          0, 0,    1 ]
-        ## Then we map the origin (0,0) and direction (0,1) and get:
-        ##    o' = 2,1e20
-        ##    d' = 2,1e20  <-- should be 1e20+2, but this can't be represented with a 32-bit float
-        ##    
-        ##    |o' - d'|  == 0    <-- this is the problem.
-        
-        ## Perhaps the easiest solution is to exclude the transformation column from dt. Does this cause any other problems?
-        
-        #if direction.x() == 0:
-            #r = abs(dt.m32())/(abs(dt.m12()) + abs(dt.m22()))
-            ##r = 1.0/(abs(dt.m12()) + abs(dt.m22()))
-        #elif direction.y() == 0:
-            #r = abs(dt.m31())/(abs(dt.m11()) + abs(dt.m21()))
-            ##r = 1.0/(abs(dt.m11()) + abs(dt.m21()))
-        #else:
-            #r = ((abs(dt.m32())/(abs(dt.m12()) + abs(dt.m22()))) * (abs(dt.m31())/(abs(dt.m11()) + abs(dt.m21()))))**0.5
-        #if r == 0:
-            #r = 1.  ## shouldn't need to do this; probably means the math above is wrong?
+
         #directionr = direction * r
         directionr = direction
-        
+
         ## map direction vector onto device
         #viewDir = Point(dt.map(directionr) - dt.map(Point(0,0)))
         #mdirection = dt.map(directionr)
@@ -268,7 +238,7 @@ class GraphicsItem(object):
         viewDir = dt.map(dirLine)
         if viewDir.length() == 0:
             return None, None   ##  pixel size cannot be represented on this scale
-           
+
         ## get unit vector and orthogonal vector (length of pixel)
         #orthoDir = Point(viewDir[1], -viewDir[0])  ## orthogonal to line in pixel-space
         try:  
@@ -277,8 +247,8 @@ class GraphicsItem(object):
             normOrtho = normView.normalVector()
             #normOrtho = orthoDir.norm()
         except:
-            raise Exception("Invalid direction %s" %directionr)
-            
+            raise Exception(f"Invalid direction {directionr}")
+
         ## map back to item 
         dti = fn.invertQTransform(dt)
         #pv = Point(dti.map(normView)-dti.map(Point(0,0))), Point(dti.map(normOrtho)-dti.map(Point(0,0)))
@@ -298,9 +268,7 @@ class GraphicsItem(object):
         normV, orthoV = self.pixelVectors(direction)
         if normV is None or orthoV is None:
             return None
-        if ortho:
-            return orthoV.length()
-        return normV.length()
+        return orthoV.length() if ortho else normV.length()
         
 
     def pixelSize(self):
@@ -334,9 +302,7 @@ class GraphicsItem(object):
         If there is no device mapping available, return None.
         """
         vt = self.deviceTransform()
-        if vt is None:
-            return None
-        return vt.map(obj)
+        return None if vt is None else vt.map(obj)
         
     def mapFromDevice(self, obj):
         """
@@ -357,9 +323,7 @@ class GraphicsItem(object):
         If there is no device mapping available, return None.
         """
         vt = self.deviceTransform()
-        if vt is None:
-            return None
-        return vt.mapRect(rect)
+        return None if vt is None else vt.mapRect(rect)
 
     def mapRectFromDevice(self, rect):
         """
@@ -374,15 +338,11 @@ class GraphicsItem(object):
     
     def mapToView(self, obj):
         vt = self.viewTransform()
-        if vt is None:
-            return None
-        return vt.map(obj)
+        return None if vt is None else vt.map(obj)
         
     def mapRectToView(self, obj):
         vt = self.viewTransform()
-        if vt is None:
-            return None
-        return vt.mapRect(obj)
+        return None if vt is None else vt.mapRect(obj)
         
     def mapFromView(self, obj):
         vt = self.viewTransform()
@@ -477,17 +437,10 @@ class GraphicsItem(object):
         ## clear out previously determined references to these.
         self.forgetViewBox()
         self.forgetViewWidget()
-        
+
         ## check for this item's current viewbox or view widget
         view = self.getViewBox()
-        #if view is None:
-            ##print "  no view"
-            #return
-
-        oldView = None
-        if self._connectedView is not None:
-            oldView = self._connectedView()
-            
+        oldView = self._connectedView() if self._connectedView is not None else None
         if view is oldView:
             #print "  already have view", view
             return
@@ -503,7 +456,7 @@ class GraphicsItem(object):
                 except (TypeError, AttributeError, RuntimeError):
                     # TypeError and RuntimeError are from pyqt and pyside, respectively
                     pass
-            
+
             self._connectedView = None
 
         ## connect to new view
@@ -520,10 +473,10 @@ class GraphicsItem(object):
             self._connectedView = weakref.ref(view)
             self.viewRangeChanged()
             self.viewTransformChanged()
-        
+
         ## inform children that their view might have changed
         self._replaceView(oldView)
-        
+
         self.viewChanged(view, oldView)
         
     def viewChanged(self, view, oldView):
@@ -596,12 +549,7 @@ class GraphicsItem(object):
         """
         if opts is None:
             opts = {}
-        if export:
-            self._exportOpts = opts
-            #if 'antialias' not in opts:
-                #self._exportOpts['antialias'] = True
-        else:
-            self._exportOpts = False
+        self._exportOpts = opts if export else False
     
     #def update(self):
         #self._qtBaseClass.update(self)

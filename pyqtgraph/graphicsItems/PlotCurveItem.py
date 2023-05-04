@@ -160,9 +160,7 @@ class PlotCurveItem(GraphicsObject):
 
     def implements(self, interface=None):
         ints = ['plotData']
-        if interface is None:
-            return ints
-        return interface in ints
+        return ints if interface is None else interface in ints
 
     def name(self):
         return self.opts.get('name', None)
@@ -258,7 +256,7 @@ class PlotCurveItem(GraphicsObject):
                 b = (d.min(), d.max())
 
         elif frac <= 0.0:
-            raise Exception("Value for parameter 'frac' must be > 0. (got %s)" % str(frac))
+            raise Exception(f"Value for parameter 'frac' must be > 0. (got {str(frac)})")
         else:
             # include a percentile of data range
             mask = np.isfinite(d)
@@ -371,10 +369,7 @@ class PlotCurveItem(GraphicsObject):
 
     def setPen(self, *args, **kargs):
         """Set the pen used to draw the curve."""
-        if args[0] is None:
-            self.opts['pen'] = None
-        else:
-            self.opts['pen'] = fn.mkPen(*args, **kargs)
+        self.opts['pen'] = None if args[0] is None else fn.mkPen(*args, **kargs)
         self.invalidateBounds()
         self.update()
 
@@ -385,10 +380,7 @@ class PlotCurveItem(GraphicsObject):
         pen to be visible. Arguments are passed to 
         :func:`mkPen <pyqtgraph.mkPen>`
         """
-        if args[0] is None:
-            self.opts['shadowPen'] = None
-        else:
-            self.opts['shadowPen'] = fn.mkPen(*args, **kargs)
+        self.opts['shadowPen'] = None if args[0] is None else fn.mkPen(*args, **kargs)
         self.invalidateBounds()
         self.update()
 
@@ -397,10 +389,7 @@ class PlotCurveItem(GraphicsObject):
         Sets the brush used when filling the area under the curve. All 
         arguments are passed to :func:`mkBrush <pyqtgraph.mkBrush>`.
         """
-        if args[0] is None:
-            self.opts['brush'] = None
-        else:
-            self.opts['brush'] = fn.mkBrush(*args, **kargs)
+        self.opts['brush'] = None if args[0] is None else fn.mkBrush(*args, **kargs)
         self.invalidateBounds()
         self.update()
 
@@ -508,11 +497,9 @@ class PlotCurveItem(GraphicsObject):
 
         profiler("data checks")
 
-        #self.setCacheMode(QtWidgets.QGraphicsItem.CacheMode.NoCache)  ## Disabling and re-enabling the cache works around a bug in Qt 4.6 causing the cached results to display incorrectly
-                                                        ##    Test this bug with test_PlotWidget and zoom in on the animated plot
         self.yData = kargs['y'].view(np.ndarray)
         self.xData = kargs['x'].view(np.ndarray)
-        
+
         self.invalidateBounds()
         self.prepareGeometryChange()
         self.informViewBoundsChanged()
@@ -529,10 +516,13 @@ class PlotCurveItem(GraphicsObject):
                     DeprecationWarning, stacklevel=3
                 )
             if len(self.xData) != len(self.yData)+1:  ## allow difference of 1 for step mode plots
-                raise Exception("len(X) must be len(Y)+1 since stepMode=True (got %s and %s)" % (self.xData.shape, self.yData.shape))
-        else:
-            if self.xData.shape != self.yData.shape:  ## allow difference of 1 for step mode plots
-                raise Exception("X and Y arrays must be the same shape--got %s and %s." % (self.xData.shape, self.yData.shape))
+                raise Exception(
+                    f"len(X) must be len(Y)+1 since stepMode=True (got {self.xData.shape} and {self.yData.shape})"
+                )
+        elif self.xData.shape != self.yData.shape:  ## allow difference of 1 for step mode plots
+            raise Exception(
+                f"X and Y arrays must be the same shape--got {self.xData.shape} and {self.yData.shape}."
+            )
 
         self.path = None
         self.fillPath = None
@@ -580,7 +570,7 @@ class PlotCurveItem(GraphicsObject):
             x2 = np.empty((len(x),2), dtype=x.dtype)
             x2[:] = x[:, np.newaxis]
         else:
-            raise ValueError("Unsupported stepMode %s" % stepMode)
+            raise ValueError(f"Unsupported stepMode {stepMode}")
         if baseline is None:
             x = x2.reshape(x2.size)[1:-1]
             y2 = np.empty((len(y),2), dtype=y.dtype)
@@ -763,10 +753,13 @@ class PlotCurveItem(GraphicsObject):
         if self.xData is None or len(self.xData) == 0:
             return
 
-        if getConfigOption('enableExperimental'):
-            if HAVE_OPENGL and isinstance(widget, QtWidgets.QOpenGLWidget):
-                self.paintGL(p, opt, widget)
-                return
+        if (
+            getConfigOption('enableExperimental')
+            and HAVE_OPENGL
+            and isinstance(widget, QtWidgets.QOpenGLWidget)
+        ):
+            self.paintGL(p, opt, widget)
+            return
 
         if self._exportOpts is not False:
             aa = self._exportOpts.get('antialias', True)
@@ -806,11 +799,10 @@ class PlotCurveItem(GraphicsObject):
                     p.drawLines(self._getLineSegments())
                     if do_fill_outline:
                         p.drawLines(self._getClosingSegments())
+                elif do_fill_outline:
+                    p.drawPath(self._getFillPath())
                 else:
-                    if do_fill_outline:
-                        p.drawPath(self._getFillPath())
-                    else:
-                        p.drawPath(self.getPath())
+                    p.drawPath(self.getPath())
 
         cp = self.opts['pen']
         if not isinstance(cp, QtGui.QPen):
@@ -821,11 +813,10 @@ class PlotCurveItem(GraphicsObject):
             p.drawLines(self._getLineSegments())
             if do_fill_outline:
                 p.drawLines(self._getClosingSegments())
+        elif do_fill_outline:
+            p.drawPath(self._getFillPath())
         else:
-            if do_fill_outline:
-                p.drawPath(self._getFillPath())
-            else:
-                p.drawPath(self.getPath())
+            p.drawPath(self.getPath())
         profiler('drawPath')
 
     def paintGL(self, p, opt, widget):

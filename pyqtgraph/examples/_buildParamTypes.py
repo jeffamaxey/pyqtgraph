@@ -37,10 +37,11 @@ def makeChild(chType, cfgDict):
 def makeMetaChild(name, cfgDict):
     children = []
     for chName, chOpts in cfgDict.items():
-        if not isinstance(chOpts, dict):
-            ch = Parameter.create(name=chName, type=chName, value=chOpts)
-        else:
-            ch = Parameter.create(name=chName, **chOpts)
+        ch = (
+            Parameter.create(name=chName, **chOpts)
+            if isinstance(chOpts, dict)
+            else Parameter.create(name=chName, type=chName, value=chOpts)
+        )
         _encounteredTypes.add(ch.type())
         children.append(ch)
     param = Parameter.create(name=name, type='group', children=children)

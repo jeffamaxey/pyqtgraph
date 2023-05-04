@@ -56,32 +56,32 @@ def reloadAll(prefix=None, debug=False):
         if modName == '__main__':
             ret[modName] = (False, 'ignored __main__')
             continue
-        
+
         # Ignore modules without a __file__ that is .py or .pyc
         if getattr(mod, '__file__', None) is None:
             ret[modName] = (False, 'module has no __file__')
             continue
-        
+
         if os.path.splitext(mod.__file__)[1] not in ['.py', '.pyc']:
-            ret[modName] = (False, '%s not a .py/pyc file' % str(mod.__file__))
+            ret[modName] = False, f'{str(mod.__file__)} not a .py/pyc file'
             continue
 
         # Ignore if the file name does not start with prefix
         if prefix is not None and mod.__file__[:len(prefix)] != prefix:
-            ret[modName] = (False, 'file %s not in prefix %s' % (mod.__file__, prefix))
+            ret[modName] = False, f'file {mod.__file__} not in prefix {prefix}'
             continue
-        
-        py = os.path.splitext(mod.__file__)[0] + '.py'
+
+        py = f'{os.path.splitext(mod.__file__)[0]}.py'
         if py in changed:
             # already processed this module
             continue
         if not os.path.isfile(py):
             # skip modules that lie about their __file__
-            ret[modName] = (False, '.py does not exist: %s' % py)
+            ret[modName] = False, f'.py does not exist: {py}'
             continue
 
         # if source file is newer than cache file, then it needs to be reloaded.
-        pyc = getattr(mod, '__cached__', py + 'c')
+        pyc = getattr(mod, '__cached__', f'{py}c')
         if not os.path.isfile(pyc):
             ret[modName] = (False, 'code has no pyc file to compare')
             continue
@@ -99,10 +99,13 @@ def reloadAll(prefix=None, debug=False):
         except Exception as exc:
             printExc("Error while reloading module %s, skipping\n" % mod)
             failed.append(mod.__name__)
-            ret[modName] = (False, 'reload failed: %s' % traceback.format_exception_only(type(exc), exc))
-        
-    if len(failed) > 0:
-        raise Exception("Some modules failed to reload: %s" % ', '.join(failed))
+            ret[modName] = (
+                False,
+                f'reload failed: {traceback.format_exception_only(type(exc), exc)}',
+            )
+
+    if failed:
+        raise Exception(f"Some modules failed to reload: {', '.join(failed)}")
 
     return ret
 
@@ -116,24 +119,24 @@ def reload(module, debug=False, lists=False, dicts=False):
     - Requires that class and function names have not changed
     """
     if debug:
-        print("Reloading %s" % str(module))
-        
+        print(f"Reloading {str(module)}")
+
     ## make a copy of the old module dictionary, reload, then grab the new module dictionary for comparison
     oldDict = module.__dict__.copy()
     orig_reload(module)
     newDict = module.__dict__
-    
+
     ## Allow modules access to the old dictionary after they reload
     if hasattr(module, '__reload__'):
         module.__reload__(oldDict)
-    
+
     ## compare old and new elements from each dict; update where appropriate
     for k in oldDict:
         old = oldDict[k]
         new = newDict.get(k, None)
         if old is new or new is None:
             continue
-        
+
         if inspect.isclass(old):
             if debug:
                 print("  Updating class %s.%s (0x%x -> 0x%x)" % (module.__name__, k, id(old), id(new)))
@@ -147,11 +150,11 @@ def reload(module, debug=False, lists=False, dicts=False):
                 extra = ""
                 if depth > 0:
                     extra = " (and %d previous versions)" % depth
-                print("  Updating function %s.%s%s" % (module.__name__, k, extra))
+                print(f"  Updating function {module.__name__}.{k}{extra}")
         elif lists and isinstance(old, list):
             l = old.len()
             old.extend(new)
-            for i in range(l):
+            for _ in range(l):
                 old.pop(0)
         elif dicts and isinstance(old, dict):
             old.update(new)
@@ -207,17 +210,17 @@ def updateClass(old, new, debug):
             if isinstance(ref, old) and ref.__class__ is old:
                 ref.__class__ = new
                 if debug:
-                    print("    Changed class for %s" % safeStr(ref))
+                    print(f"    Changed class for {safeStr(ref)}")
             elif inspect.isclass(ref) and issubclass(ref, old) and old in ref.__bases__:
                 ind = ref.__bases__.index(old)
-                
+
                 ## Does not work:
                 #ref.__bases__ = ref.__bases__[:ind] + (new,) + ref.__bases__[ind+1:]
                 ## reason: Even though we change the code on methods, they remain bound
                 ## to their old classes (changing im_class is not allowed). Instead,
                 ## we have to update the __bases__ such that this class will be allowed
                 ## as an argument to older methods.
-                
+
                 ## This seems to work. Is there any reason not to?
                 ## Note that every time we reload, the class hierarchy becomes more complex.
                 ## (and I presume this may slow things down?)
@@ -225,19 +228,21 @@ def updateClass(old, new, debug):
                 try:
                     ref.__bases__ = newBases
                 except TypeError:
-                    print("    Error setting bases for class %s" % ref)
-                    print("        old bases: %s" % repr(ref.__bases__))
-                    print("        new bases: %s" % repr(newBases))
+                    print(f"    Error setting bases for class {ref}")
+                    print(f"        old bases: {repr(ref.__bases__)}")
+                    print(f"        new bases: {repr(newBases)}")
                     raise
                 if debug:
-                    print("    Changed superclass for %s" % safeStr(ref))
-            #else:
-                #if debug:
-                    #print "    Ignoring reference", type(ref)
+                    print(f"    Changed superclass for {safeStr(ref)}")
+                    #else:
+                        #if debug:
+                            #print "    Ignoring reference", type(ref)
         except Exception:
-            print("Error updating reference (%s) for class change (%s -> %s)" % (safeStr(ref), safeStr(old), safeStr(new)))
+            print(
+                f"Error updating reference ({safeStr(ref)}) for class change ({safeStr(old)} -> {safeStr(new)})"
+            )
             raise
-        
+
     ## update all class methods to use new code.
     ## Generally this is not needed since instances already know about the new class, 
     ## but it fixes a few specific cases (pyqt signals, for one)
@@ -249,9 +254,11 @@ def updateClass(old, new, debug):
                 na = getattr(new, attr)
             except AttributeError:
                 if debug:
-                    print("    Skipping method update for %s; new class does not have this attribute" % attr)
+                    print(
+                        f"    Skipping method update for {attr}; new class does not have this attribute"
+                    )
                 continue
-                
+
             ofunc = getattr(oa, '__func__', oa)  # in py2 we have to get the __func__ from unbound method,
             nfunc = getattr(na, '__func__', na)  # in py3 the attribute IS the function
 
@@ -264,17 +271,17 @@ def updateClass(old, new, debug):
                     extra = ""
                     if depth > 0:
                         extra = " (and %d previous versions)" % depth
-                    print("    Updating method %s%s" % (attr, extra))
-                
+                    print(f"    Updating method {attr}{extra}")
+
     ## And copy in new functions that didn't exist previously
     for attr in dir(new):
         if attr == '__previous_reload_version__':
             continue
         if not hasattr(old, attr):
             if debug:
-                print("    Adding missing attribute %s" % attr)
+                print(f"    Adding missing attribute {attr}")
             setattr(old, attr, getattr(new, attr))
-            
+
     ## finally, update any previous versions still hanging around..
     if hasattr(old, '__previous_reload_version__'):
         updateClass(old.__previous_reload_version__, new, debug)
@@ -303,16 +310,15 @@ def getPreviousVersion(obj):
         if obj.__self__ is None:
             # unbound method
             return getattr(obj.__func__, '__previous_reload_method__', None)
+        oldmethod = getattr(obj.__func__, '__previous_reload_method__', None)
+        if oldmethod is None:
+            return None
+        self = obj.__self__
+        oldfunc = getattr(oldmethod, '__func__', oldmethod)
+        if hasattr(oldmethod, 'im_class'):
+            # python 2
+            cls = oldmethod.im_class
+            return types.MethodType(oldfunc, self, cls)
         else:
-            oldmethod = getattr(obj.__func__, '__previous_reload_method__', None)
-            if oldmethod is None:
-                return None
-            self = obj.__self__
-            oldfunc = getattr(oldmethod, '__func__', oldmethod)
-            if hasattr(oldmethod, 'im_class'):
-                # python 2
-                cls = oldmethod.im_class
-                return types.MethodType(oldfunc, self, cls)
-            else:
-                # python 3
-                return types.MethodType(oldfunc, self)
+            # python 3
+            return types.MethodType(oldfunc, self)

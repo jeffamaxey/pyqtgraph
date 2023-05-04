@@ -303,10 +303,7 @@ class HistogramLUTItem(GraphicsWidget):
         if self.levelMode != 'mono':
             return None
         if n is None:
-            if img.dtype == np.uint8:
-                n = 256
-            else:
-                n = 512
+            n = 256 if img.dtype == np.uint8 else 512
         if self.lut is None:
             self.lut = self.gradient.getLookupTable(n, alpha=alpha)
         return self.lut
@@ -374,11 +371,10 @@ class HistogramLUTItem(GraphicsWidget):
         """
         if self.levelMode == 'mono':
             return self.region.getRegion()
-        else:
-            nch = self.imageItem().channels()
-            if nch is None:
-                nch = 3
-            return [r.getRegion() for r in self.regions[1:nch+1]]
+        nch = self.imageItem().channels()
+        if nch is None:
+            nch = 3
+        return [r.getRegion() for r in self.regions[1:nch+1]]
 
     def setLevels(self, min=None, max=None, rgba=None):
         """Set the min/max (bright and dark) levels.
